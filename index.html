@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ScalpLayer Analyzer v1.0</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">SL</div>
+        <div>
+          <h1>ScalpLayer Analyzer</h1>
+          <p>Research Command Center v1.0</p>
+        </div>
+      </div>
+
+      <label class="file-loader" for="csvFiles">
+        <span>CSVを読み込む</span>
+        <small>複数選択対応</small>
+      </label>
+      <input id="csvFiles" type="file" accept=".csv,text/csv" multiple>
+
+      <div class="drop-zone" id="dropZone">
+        <strong>Drop CSV Files</strong>
+        <span>TradeHistory / EngineActivity / NearMiss など</span>
+      </div>
+
+      <nav class="tabs" aria-label="Analyzer tabs">
+        <button class="tab active" data-tab="dashboard">Dashboard</button>
+        <button class="tab" data-tab="trade">Trade Analysis</button>
+        <button class="tab" data-tab="engine">Engine Analysis</button>
+        <button class="tab" data-tab="nearmiss">Near Miss Analysis</button>
+        <button class="tab" data-tab="session">Session Analysis</button>
+        <button class="tab" data-tab="signal">Signal Analysis</button>
+        <button class="tab" data-tab="suggestions">Development Suggestions</button>
+        <button class="tab" data-tab="manager">CSV Manager</button>
+      </nav>
+
+      <div class="status-card">
+        <span class="status-dot" id="statusDot"></span>
+        <div>
+          <strong id="statusTitle">CSV未読込</strong>
+          <p id="statusText">EAが出力したCSVを読み込んでください。</p>
+        </div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">ScalpLayer Project</p>
+          <h2 id="pageTitle">Dashboard</h2>
+        </div>
+        <div class="top-actions">
+          <button id="samplePromptButton" class="ghost-button">ChatGPT依頼文</button>
+          <button id="resetButton" class="ghost-button">Reset</button>
+        </div>
+      </header>
+
+      <section class="tab-panel active" id="dashboard">
+        <div class="recommendation-card" id="healthCard">
+          <span class="pill">Research Status</span>
+          <h3>CSVを読み込むと、EAの健康状態を自動評価します。</h3>
+          <p>TradeHistory、EngineActivity、NearMiss、SessionResearchをまとめて見ることで、勝ちやすい条件と止まっている条件を分離できます。</p>
+        </div>
+
+        <div class="metric-grid" id="dashboardMetrics"></div>
+
+        <div class="grid two">
+          <article class="card">
+            <div class="card-head">
+              <h3>累積損益</h3>
+              <span>TradeHistory</span>
+            </div>
+            <canvas id="equityChart"></canvas>
+          </article>
+          <article class="card">
+            <div class="card-head">
+              <h3>Engine別利益</h3>
+              <span>Ranking</span>
+            </div>
+            <canvas id="engineProfitChart"></canvas>
+          </article>
+        </div>
+
+        <div class="grid two">
+          <article class="card">
+            <h3>Engine別利益ランキング</h3>
+            <div id="engineProfitRanking"></div>
+          </article>
+          <article class="card">
+            <h3>時間帯・曜日サマリー</h3>
+            <div id="timeWeekSummary"></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="tab-panel" id="trade">
+        <div class="section-head">
+          <h3>Trade Analysis</h3>
+          <p>実際に約定し、決済された履歴をEngine別に評価します。</p>
+        </div>
+        <div class="grid two">
+          <article class="card"><canvas id="tradeEngineChart"></canvas></article>
+          <article class="card"><canvas id="weekdayChart"></canvas></article>
+        </div>
+        <article class="card">
+          <h3>Engine別トレード成績</h3>
+          <div id="tradeTable"></div>
+        </article>
+      </section>
+
+      <section class="tab-panel" id="engine">
+        <div class="section-head">
+          <h3>Engine Analysis</h3>
+          <p>EngineActivity.csv / EngineActivity_v2.csvから、各Engineがどこで止まっているかを確認します。</p>
+        </div>
+        <div id="engineCards" class="engine-card-grid"></div>
+        <article class="card">
+          <h3>TopNGランキング</h3>
+          <div id="topNgTable"></div>
+        </article>
+      </section>
+
+      <section class="tab-panel" id="nearmiss">
+        <div class="section-head">
+          <h3>Near Miss Analysis</h3>
+          <p>あと1条件、あと2条件でエントリーできた候補を分析します。</p>
+        </div>
+        <div class="grid two">
+          <article class="card"><canvas id="nearMissChart"></canvas></article>
+          <article class="card">
+            <h3>一番惜しいEngine</h3>
+            <div id="closestEngine"></div>
+          </article>
+        </div>
+        <article class="card">
+          <h3>NG条件ランキング</h3>
+          <div id="nearMissTable"></div>
+        </article>
+      </section>
+
+      <section class="tab-panel" id="session">
+        <div class="section-head">
+          <h3>Session Analysis</h3>
+          <p>Tokyo / London / NY / Other別に、成立率とNearMissを確認します。</p>
+        </div>
+        <div class="grid two">
+          <article class="card"><canvas id="sessionChart"></canvas></article>
+          <article class="card"><canvas id="sessionConditionChart"></canvas></article>
+        </div>
+        <article class="card">
+          <h3>SessionResearch集計</h3>
+          <div id="sessionTable"></div>
+        </article>
+      </section>
+
+      <section class="tab-panel" id="signal">
+        <div class="section-head">
+          <h3>Signal Analysis</h3>
+          <p>ScalpLayer_Integrated_signal_log.csvからSignal数とEntry成功率を確認します。</p>
+        </div>
+        <div class="grid two">
+          <article class="card"><canvas id="signalChart"></canvas></article>
+          <article class="card">
+            <h3>Signal概要</h3>
+            <div id="signalSummary"></div>
+          </article>
+        </div>
+        <article class="card">
+          <h3>Engine別Signal</h3>
+          <div id="signalTable"></div>
+        </article>
+      </section>
+
+      <section class="tab-panel" id="suggestions">
+        <div class="section-head">
+          <h3>Development Suggestions</h3>
+          <p>条件変更ではなく、次に検証すべきResearch候補を提案します。</p>
+        </div>
+        <div id="suggestionList" class="suggestion-list"></div>
+        <article class="card">
+          <h3>ChatGPTへ渡す分析依頼文</h3>
+          <textarea id="chatgptPrompt" readonly></textarea>
+        </article>
+      </section>
+
+      <section class="tab-panel" id="manager">
+        <div class="section-head">
+          <h3>CSV Manager</h3>
+          <p>読み込んだCSVの存在、件数、列数、対応Versionを確認します。</p>
+        </div>
+        <article class="card">
+          <h3>読み込み済みCSV</h3>
+          <div id="csvManagerTable"></div>
+        </article>
+        <article class="card">
+          <h3>対応CSV仕様</h3>
+          <div id="csvSpecTable"></div>
+        </article>
+      </section>
+    </main>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
