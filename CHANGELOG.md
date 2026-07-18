@@ -1,5 +1,46 @@
 # CHANGELOG
 
+## v3.2 Research Workflow & AI Research Manager Edition
+
+### Added
+
+- Research Manager tab
+- Research Board tab
+- Research Portfolio tab
+- Research Item schema
+- Research templates
+- Hypothesis management
+- Validation plan management
+- Success / failure criteria fields
+- Evidence log
+- Decision log
+- Priority and status workflow
+- Analyzer snapshot saved to each Research item
+- JSON export / import as `ScalpLayer_Research_Manager.json`
+- Markdown export per Research item
+- Portfolio metrics
+- Priority matrix
+- Stale Research warning
+- `researchTemplates.js`
+- `researchStorage.js`
+- `researchManager.js`
+- `RESEARCH_MANAGER_SPECIFICATION.md`
+- `RESEARCH_WORKFLOW_GUIDE.md`
+
+### Improved
+
+- Research Intelligence cards can now be registered directly into Research Manager
+- README was rewritten in clean Japanese to remove mojibake
+- Research workflow is now explicit: candidate -> hypothesis -> validation -> evidence -> decision
+
+### Not Changed
+
+- No EA code changes
+- No CSV rewriting
+- No trading-condition changes
+- No automatic EA adoption
+- No external AI API calls
+
 ## v3.1 Stabilization & Deep Research Edition
 
 ### Added

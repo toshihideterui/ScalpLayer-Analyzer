@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>ScalpLayer Research Lab v3.0</title>
+  <title>ScalpLayer Research Lab v3.2</title>
   <link rel="stylesheet" href="style.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 </head>
@@ -14,7 +14,7 @@
         <div class="brand-mark">SL</div>
         <div>
           <h1>ScalpLayer Research Lab</h1>
-          <p>AI Research Lab Edition v3.0</p>
+          <p>Research Workflow & AI Research Manager Edition v3.2</p>
         </div>
       </div>
 
@@ -41,6 +41,9 @@
         <button class="tab" data-tab="signal">Signal</button>
         <button class="tab" data-tab="manager">CSV Manager</button>
         <button class="tab" data-tab="intelligence">Research Intelligence</button>
+        <button class="tab" data-tab="researchManager">Research Manager</button>
+        <button class="tab" data-tab="researchBoard">Research Board</button>
+        <button class="tab" data-tab="portfolio">Research Portfolio</button>
         <button class="tab" data-tab="timeline">Research Timeline</button>
       </nav>
 
@@ -176,6 +179,61 @@
         <article class="card"><h3>AI Prompt Builder</h3><textarea id="chatgptPrompt" readonly></textarea></article>
       </section>
 
+      <section class="tab-panel" id="researchManager">
+        <div class="section-head"><h3>Research Manager</h3><p>Research candidates are managed as research items. Adopt does not modify EA code.</p></div>
+        <div class="grid two">
+          <article class="card">
+            <h3>Create Research</h3>
+            <div class="form-grid">
+              <label>Template<select id="researchTemplate"></select></label>
+              <label>Title<input id="researchTitle" type="text" placeholder="Research title"></label>
+              <label>Category<select id="researchCategory"></select></label>
+              <label>Status<select id="researchStatus"></select></label>
+              <label>Priority<select id="researchPriority"></select></label>
+              <label>Engine<input id="researchEngine" type="text" placeholder="Engine"></label>
+              <label>Condition<input id="researchCondition" type="text" placeholder="Condition"></label>
+              <label>Session<input id="researchSession" type="text" placeholder="Session"></label>
+            </div>
+            <label>Hypothesis<textarea id="researchHypothesis" placeholder="Research hypothesis"></textarea></label>
+            <label>Validation Plan<textarea id="researchValidationPlan" placeholder="Validation plan"></textarea></label>
+            <div class="memo-actions">
+              <button id="createResearchButton" class="ghost-button">Create Research</button>
+              <button id="exportResearchManagerButton" class="ghost-button">Export JSON</button>
+              <label class="ghost-button import-label">Import JSON<input id="importResearchManagerInput" type="file" accept=".json,application/json"></label>
+            </div>
+          </article>
+          <article class="card">
+            <h3>Research Detail</h3>
+            <div id="researchDetail"></div>
+          </article>
+        </div>
+        <article class="card">
+          <h3>Research List</h3>
+          <div class="form-grid compact">
+            <label>Status<select id="filterResearchStatus"></select></label>
+            <label>Category<select id="filterResearchCategory"></select></label>
+            <label>Decision<select id="filterResearchDecision"></select></label>
+            <label>Search<input id="researchSearch" type="text" placeholder="Search"></label>
+          </div>
+          <div id="researchList"></div>
+        </article>
+      </section>
+
+      <section class="tab-panel" id="researchBoard">
+        <div class="section-head"><h3>Research Board</h3><p>Kanban-style workflow. Use status buttons to move items.</p></div>
+        <div id="researchBoardView" class="board"></div>
+      </section>
+
+      <section class="tab-panel" id="portfolio">
+        <div class="section-head"><h3>Research Portfolio</h3><p>Portfolio health, priority matrix, stale items, and next recommended research.</p></div>
+        <div id="portfolioMetrics" class="metric-grid"></div>
+        <div class="grid two">
+          <article class="card"><h3>Priority Matrix</h3><div id="priorityMatrix"></div></article>
+          <article class="card"><h3>Next Recommended Research</h3><div id="nextResearchRecommendation"></div></article>
+        </div>
+        <article class="card"><h3>Stale Research</h3><div id="staleResearchTable"></div></article>
+      </section>
+
       <section class="tab-panel" id="timeline">
         <div class="section-head"><h3>Research Timeline</h3><p>Local history, Engine Evolution, and Research Memo.</p></div>
         <div class="grid two">
@@ -192,6 +250,9 @@
   </div>
 
   <script src="analysisEngine.js"></script>
+  <script src="researchTemplates.js"></script>
+  <script src="researchStorage.js"></script>
+  <script src="researchManager.js"></script>
   <script src="script.js"></script>
 </body>
 </html>

@@ -5,6 +5,7 @@ document.addEventListener("DOMContentLoaded", () => {
   setupTabs();
   setupFileInput();
   setupButtons();
+  fillResearchSelects();
   if (byId("researchMemo")) byId("researchMemo").value = loadMemo();
   renderAll();
 });
@@ -62,6 +63,17 @@ function setupButtons() {
     renderEngine();
     renderHeatmaps();
   });
+  on("researchTemplate", "change", applyResearchTemplate);
+  on("createResearchButton", "click", createResearchFromForm);
+  on("exportResearchManagerButton", "click", exportResearchManager);
+  on("importResearchManagerInput", "change", importResearchManager);
+  ["filterResearchStatus", "filterResearchCategory", "filterResearchDecision", "researchSearch"].forEach((id) => {
+    on(id, id === "researchSearch" ? "input" : "change", () => {
+      renderResearchManager();
+      renderResearchBoard();
+      renderPortfolio();
+    });
+  });
 }
 
 async function loadFiles(files) {
@@ -90,6 +102,9 @@ function renderAll() {
   renderSignal();
   renderManager();
   renderIntelligence();
+  renderResearchManager();
+  renderResearchBoard();
+  renderPortfolio();
   renderTimeline();
 }
 
@@ -230,7 +245,18 @@ function renderManager() {
 function renderIntelligence() {
   const top = engine.results.intelligence[0];
   setHtml("intelligenceHero", top ? `<span class="pill">Today's AI Recommendation</span><h3>${top.stars} ${escapeHtml(top.title)}</h3><p><strong>${escapeHtml(top.target)}</strong> - ${escapeHtml(top.reason)}</p>` : `<span class="pill">Research Intelligence</span><h3>Load CSV to generate Research candidates.</h3><p>This lab shows Research candidates, not trading-condition changes.</p>`);
-  setHtml("researchSuggestions", engine.results.intelligence.map((s) => `<div class="suggestion"><div class="stars">${s.stars}</div><div><h4>${escapeHtml(s.title)}</h4><p><span class="tag">${escapeHtml(s.target)}</span></p><p>${escapeHtml(s.reason)}</p></div></div>`).join("") || `<div class="empty">No Research candidates yet.</div>`);
+  setHtml("researchSuggestions", engine.results.intelligence.map((s, i) => `<div class="suggestion"><div class="stars">${s.stars}</div><div><h4>${escapeHtml(s.title)}</h4><p><span class="tag">${escapeHtml(s.target)}</span></p><p>${escapeHtml(s.reason)}</p><button class="mini-button add-research" data-index="${i}">Add to Research Manager</button></div></div>`).join("") || `<div class="empty">No Research candidates yet.</div>`);
+  document.querySelectorAll(".add-research").forEach((button) => {
+    button.addEventListener("click", () => {
+      const suggestion = engine.results.intelligence[Number(button.dataset.index)];
+      if (!suggestion) return;
+      researchManager.createFromSuggestion(suggestion, analyzerSnapshot());
+      renderResearchManager();
+      renderResearchBoard();
+      renderPortfolio();
+      activateTab("researchManager");
+    });
+  });
   if (byId("chatgptPrompt")) byId("chatgptPrompt").value = engine.getPrompt();
 }
 
@@ -243,6 +269,240 @@ function renderTimeline() {
     { label: "PF", data: history.map((x) => round(x.profitFactor)) }
   ]);
   setHtml("engineEvolution", engineEvolution(history));
+}
+
+function fillResearchSelects() {
+  fillSelect("researchCategory", RESEARCH_CATEGORIES);
+  fillSelect("filterResearchCategory", ["All", ...RESEARCH_CATEGORIES]);
+  fillSelect("researchStatus", RESEARCH_STATUSES);
+  fillSelect("filterResearchStatus", ["All", ...RESEARCH_STATUSES]);
+  fillSelect("filterResearchDecision", ["All", ...RESEARCH_DECISIONS]);
+  fillSelect("researchPriority", RESEARCH_PRIORITIES);
+  fillSelect("researchTemplate", Object.keys(RESEARCH_TEMPLATES));
+}
+
+function fillSelect(id, values) {
+  const el = byId(id);
+  if (!el) return;
+  el.innerHTML = values.map((value) => `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`).join("");
+}
+
+function applyResearchTemplate() {
+  const template = RESEARCH_TEMPLATES[byId("researchTemplate")?.value || "Blank"];
+  if (!template) return;
+  setInput("researchCategory", template.category || "Other");
+  setInput("researchHypothesis", template.hypothesis || "");
+  setInput("researchValidationPlan", template.validationPlan || "");
+  if (!byId("researchTitle")?.value) setInput("researchTitle", template.title || "");
+}
+
+function createResearchFromForm() {
+  const title = valueOf("researchTitle") || "Untitled Research";
+  const item = researchManager.create({
+    title,
+    category: valueOf("researchCategory"),
+    status: valueOf("researchStatus"),
+    priority: valueOf("researchPriority"),
+    engine: valueOf("researchEngine"),
+    condition: valueOf("researchCondition"),
+    session: valueOf("researchSession"),
+    hypothesis: valueOf("researchHypothesis"),
+    validationPlan: valueOf("researchValidationPlan"),
+    sourceAnalyzerSnapshot: analyzerSnapshot()
+  });
+  setInput("researchTitle", "");
+  researchManager.selectedId = item.id;
+  renderResearchManager();
+  renderResearchBoard();
+  renderPortfolio();
+}
+
+function renderResearchManager() {
+  if (!byId("researchList")) return;
+  const rows = researchManager.filtered({
+    status: valueOf("filterResearchStatus") || "All",
+    category: valueOf("filterResearchCategory") || "All",
+    decision: valueOf("filterResearchDecision") || "All",
+    search: valueOf("researchSearch")
+  });
+  setHtml("researchList", rows.length ? `<table><thead><tr><th>Title</th><th>Status</th><th>Priority</th><th>Score</th><th>Health</th><th>Next Action</th><th>Open</th></tr></thead><tbody>${rows.map((item) => `<tr><td>${escapeHtml(item.title)}</td><td>${escapeHtml(item.status)}</td><td>${escapeHtml(item.priority)}</td><td>${escapeHtml(item.researchScore)}</td><td>${escapeHtml(researchHealth(item))}</td><td>${escapeHtml(nextAction(item))}</td><td><button class="mini-button open-research" data-id="${escapeHtml(item.id)}">Open</button></td></tr>`).join("")}</tbody></table>` : `<div class="empty">No research items yet. Add a candidate from Research Intelligence or create one manually.</div>`);
+  document.querySelectorAll(".open-research").forEach((button) => button.addEventListener("click", () => {
+    researchManager.selectedId = button.dataset.id;
+    renderResearchDetail();
+  }));
+  renderResearchDetail();
+}
+
+function renderResearchDetail() {
+  const item = researchManager.get(researchManager.selectedId);
+  if (!item) {
+    setHtml("researchDetail", `<div class="empty">Select a research item.</div>`);
+    return;
+  }
+  setHtml("researchDetail", `
+    <h3>${escapeHtml(item.title)}</h3>
+    <p><span class="tag">${escapeHtml(item.category)}</span> <span class="tag">${escapeHtml(item.status)}</span> <span class="tag">${escapeHtml(item.priority)}</span> <span class="tag">${escapeHtml(item.decision)}</span></p>
+    <div class="metric-grid">${metrics([["Progress", `${researchProgress(item)}%`], ["Health", researchHealth(item)], ["Score", item.researchScore], ["Confidence", item.confidence]])}</div>
+    <h4>Hypothesis</h4><textarea id="detailHypothesis">${escapeHtml(item.hypothesis)}</textarea>
+    <h4>Validation Plan</h4><textarea id="detailValidation">${escapeHtml(item.validationPlan)}</textarea>
+    <h4>Success Criteria</h4><textarea id="detailSuccess">${escapeHtml(item.successCriteria)}</textarea>
+    <h4>Failure Criteria</h4><textarea id="detailFailure">${escapeHtml(item.failureCriteria)}</textarea>
+    <h4>Result Summary</h4><textarea id="detailResult">${escapeHtml(item.resultSummary)}</textarea>
+    <p><strong>Required Data:</strong> ${escapeHtml(item.requiredData || "-")}</p>
+    <p><strong>Next Action:</strong> ${escapeHtml(nextAction(item))}</p>
+    <div class="button-row">
+      <button class="mini-button" id="saveResearchDetail">Save Detail</button>
+      <button class="mini-button" id="addResearchEvidence">Add Evidence</button>
+      <button class="mini-button" id="downloadResearchMarkdown">Export Markdown</button>
+    </div>
+    <div class="button-row">
+      ${RESEARCH_DECISIONS.filter((d) => d !== "Undecided").map((decision) => `<button class="mini-button decision-button" data-decision="${escapeHtml(decision)}">${escapeHtml(decision)}</button>`).join("")}
+    </div>
+    <h4>Evidence</h4>
+    ${table(["At", "Note"], (item.evidence || []).map((e) => [new Date(e.at).toLocaleString(), e.note]))}
+  `);
+  on("saveResearchDetail", "click", () => {
+    researchManager.update(item.id, {
+      hypothesis: valueOf("detailHypothesis"),
+      validationPlan: valueOf("detailValidation"),
+      successCriteria: valueOf("detailSuccess"),
+      failureCriteria: valueOf("detailFailure"),
+      resultSummary: valueOf("detailResult")
+    });
+    renderResearchManager();
+    renderResearchBoard();
+    renderPortfolio();
+  });
+  on("addResearchEvidence", "click", () => {
+    const note = window.prompt("Evidence note");
+    if (!note) return;
+    researchManager.addEvidence(item.id, note);
+    renderResearchManager();
+    renderResearchBoard();
+    renderPortfolio();
+  });
+  on("downloadResearchMarkdown", "click", () => downloadText(`${safeFileName(item.title)}.md`, researchItemMarkdown(item), "text/markdown"));
+  document.querySelectorAll(".decision-button").forEach((button) => button.addEventListener("click", () => {
+    researchManager.setDecision(item.id, button.dataset.decision, valueOf("detailResult"));
+    renderResearchManager();
+    renderResearchBoard();
+    renderPortfolio();
+  }));
+}
+
+function renderResearchBoard() {
+  if (!byId("researchBoardView")) return;
+  const boardStatuses = ["Backlog", "Hypothesis", "Ready", "Collecting Data", "Testing", "Review", "Completed"];
+  setHtml("researchBoardView", boardStatuses.map((status) => {
+    const items = researchManager.items.filter((item) => item.status === status);
+    return `<div class="board-column"><h4>${escapeHtml(status)} <span>${items.length}</span></h4>${items.map(researchCard).join("") || `<div class="empty">No items.</div>`}</div>`;
+  }).join(""));
+  document.querySelectorAll(".move-research").forEach((button) => button.addEventListener("click", () => {
+    researchManager.update(button.dataset.id, { status: button.dataset.status });
+    renderResearchManager();
+    renderResearchBoard();
+    renderPortfolio();
+  }));
+}
+
+function researchCard(item) {
+  const next = {
+    Backlog: "Hypothesis",
+    Hypothesis: "Ready",
+    Ready: "Collecting Data",
+    "Collecting Data": "Testing",
+    Testing: "Review",
+    Review: "Completed"
+  }[item.status];
+  return `<div class="research-card"><strong>${escapeHtml(item.title)}</strong><p>${escapeHtml(item.engine || item.condition || item.session || item.category)}</p><p>${escapeHtml(item.researchScore)} / ${escapeHtml(item.priority)}</p>${next ? `<button class="mini-button move-research" data-id="${escapeHtml(item.id)}" data-status="${escapeHtml(next)}">Move to ${escapeHtml(next)}</button>` : ""}</div>`;
+}
+
+function renderPortfolio() {
+  if (!byId("portfolioMetrics")) return;
+  const p = researchManager.portfolio();
+  setHtml("portfolioMetrics", metrics([["Total", p.total], ["Adopted", p.adopted], ["Rejected", p.rejected], ["On Hold", p.onHold], ["Stale", p.stale], ["Critical", p.critical]]));
+  setHtml("priorityMatrix", priorityMatrixHtml());
+  const rec = researchManager.recommended();
+  setHtml("nextResearchRecommendation", rec ? `<div class="suggestion"><div class="stars">${escapeHtml(rec.researchScore)}</div><div><h4>${escapeHtml(rec.title)}</h4><p>${escapeHtml(nextAction(rec))}</p><p><span class="tag">${escapeHtml(rec.priority)}</span> <span class="tag">${escapeHtml(rec.confidence)}</span></p></div></div>` : `<div class="empty">No active research recommendation.</div>`);
+  setHtml("staleResearchTable", table(["Title", "Status", "Updated", "Next Action"], researchManager.stale().map((item) => [item.title, item.status, new Date(item.updatedAt).toLocaleString(), nextAction(item)])));
+}
+
+function priorityMatrixHtml() {
+  const cells = [
+    ["High Score / High Confidence", (x) => scoreWeight(x.researchScore) >= 4 && ["High", "Medium"].includes(x.confidence)],
+    ["High Score / Low Confidence", (x) => scoreWeight(x.researchScore) >= 4 && !["High", "Medium"].includes(x.confidence)],
+    ["Low Score / High Confidence", (x) => scoreWeight(x.researchScore) < 4 && ["High", "Medium"].includes(x.confidence)],
+    ["Low Score / Low Confidence", (x) => scoreWeight(x.researchScore) < 4 && !["High", "Medium"].includes(x.confidence)]
+  ];
+  return `<div class="matrix-grid">${cells.map(([label, pred]) => {
+    const items = researchManager.items.filter(pred);
+    return `<div class="matrix-cell"><h4>${escapeHtml(label)}</h4><strong>${items.length}</strong><p>${items.slice(0, 3).map((x) => escapeHtml(x.title)).join("<br>") || "No items"}</p></div>`;
+  }).join("")}</div>`;
+}
+
+function exportResearchManager() {
+  downloadText("ScalpLayer_Research_Manager.json", JSON.stringify(ResearchStorage.exportBundle(researchManager.items, researchManager.settings), null, 2), "application/json");
+}
+
+async function importResearchManager(event) {
+  const file = event.target.files?.[0];
+  if (!file) return;
+  const text = await file.text();
+  const result = ResearchStorage.importBundle(text);
+  if (!result.ok) {
+    window.alert(result.error);
+    return;
+  }
+  researchManager.items = result.items;
+  researchManager.selectedId = result.items[0]?.id || "";
+  renderResearchManager();
+  renderResearchBoard();
+  renderPortfolio();
+}
+
+function analyzerSnapshot() {
+  return {
+    datetime: new Date().toISOString(),
+    files: Array.from(engine.files.keys()),
+    dashboard: engine.results.dashboard,
+    topIntelligence: engine.results.intelligence.slice(0, 5),
+    topNg: engine.results.nearMiss.ngReasons?.slice(0, 10) || [],
+    dataset: engine.results.datasetSummary || null
+  };
+}
+
+function researchItemMarkdown(item) {
+  return [
+    `# ${item.title}`,
+    "",
+    `- Category: ${item.category}`,
+    `- Status: ${item.status}`,
+    `- Priority: ${item.priority}`,
+    `- Research Score: ${item.researchScore}`,
+    `- Confidence: ${item.confidence}`,
+    `- Decision: ${item.decision}`,
+    "",
+    "## Hypothesis",
+    item.hypothesis || "-",
+    "",
+    "## Validation Plan",
+    item.validationPlan || "-",
+    "",
+    "## Success Criteria",
+    item.successCriteria || "-",
+    "",
+    "## Failure Criteria",
+    item.failureCriteria || "-",
+    "",
+    "## Evidence",
+    ...(item.evidence?.length ? item.evidence.map((e) => `- ${e.at}: ${e.note}`) : ["- No evidence yet."]),
+    "",
+    "## Result Summary",
+    item.resultSummary || "-",
+    "",
+    "## Next Action",
+    nextAction(item)
+  ].join("\n");
 }
 
 function researchItem(label, value, note) {
@@ -323,6 +583,8 @@ function makeChart(id, config) {
 
 function setHtml(id, html) { const el = byId(id); if (el) el.innerHTML = html; }
 function setText(id, text) { const el = byId(id); if (el) el.textContent = text; }
+function setInput(id, value) { const el = byId(id); if (el) el.value = value ?? ""; }
+function valueOf(id) { return byId(id)?.value || ""; }
 function fmt(value) { return Number(value || 0).toLocaleString(); }
 function pct(value) { return `${round(value)}%`; }
 function pf(value) { return value >= 999 ? "Infinity" : String(round(value)); }
@@ -330,6 +592,7 @@ function signed(value) { return value > 0 ? `+${value}` : String(value); }
 function trend(value) { return value > 0 ? "Improving" : value < 0 ? "Worsening" : "Stable"; }
 function healthClass(value) { return value === "Needs Research" ? "Needs" : value || "Inactive"; }
 function escapeHtml(value) { return String(value ?? "").replace(/[&<>"']/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" }[m])); }
+function safeFileName(value) { return String(value || "Research").replace(/[\\/:*?"<>|]+/g, "_").slice(0, 80) || "Research"; }
 
 function downloadHistory() { downloadText("ResearchHistory.json", JSON.stringify(loadResearchHistory(), null, 2), "application/json"); }
 function downloadMarkdownReport() { downloadText("ResearchReport.md", buildMarkdownReport(engine.results, byId("researchMemo")?.value || ""), "text/markdown"); }

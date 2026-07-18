@@ -31,6 +31,7 @@ body {
 }
 
 button, input, textarea { font: inherit; }
+input, select, textarea { max-width: 100%; }
 
 .app-shell {
   display: grid;
@@ -336,6 +337,117 @@ textarea {
   resize: vertical;
 }
 
+input[type="text"], input[type="number"] {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: var(--text);
+  background: #07111f;
+  padding: 10px 12px;
+}
+
+label {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.form-grid.compact {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.import-label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.import-label input {
+  display: none;
+}
+
+.board {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(240px, 1fr));
+  gap: 14px;
+  overflow-x: auto;
+  padding-bottom: 12px;
+}
+
+.board-column {
+  min-height: 360px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(13, 27, 45, .72);
+  padding: 12px;
+}
+
+.board-column h4 {
+  margin: 0 0 12px;
+  color: var(--cyan);
+}
+
+.research-card {
+  display: grid;
+  gap: 7px;
+  padding: 12px;
+  border: 1px solid rgba(35, 64, 93, .9);
+  border-radius: 12px;
+  background: rgba(16, 36, 58, .88);
+  margin-bottom: 10px;
+}
+
+.research-card strong {
+  color: var(--text);
+}
+
+.research-card small {
+  color: var(--muted);
+}
+
+.card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.mini-button {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--text);
+  background: rgba(7, 17, 31, .7);
+  padding: 5px 8px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.matrix-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.matrix-cell {
+  min-height: 120px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px;
+  background: rgba(16, 36, 58, .68);
+}
+
+.matrix-cell h4 {
+  margin: 0 0 10px;
+}
+
 .memo-actions { display: flex; align-items: center; gap: 12px; margin-top: 12px; color: var(--muted); }
 
 pre {
@@ -419,7 +531,7 @@ select {
 @media (max-width: 1100px) {
   .app-shell { grid-template-columns: 1fr; }
   .sidebar { position: relative; height: auto; }
-  .metric-grid, .grid.two, .engine-card-grid, .research-strip { grid-template-columns: 1fr; }
+  .metric-grid, .grid.two, .engine-card-grid, .research-strip, .form-grid, .form-grid.compact { grid-template-columns: 1fr; }
   .topbar { align-items: flex-start; flex-direction: column; }
 }
 
