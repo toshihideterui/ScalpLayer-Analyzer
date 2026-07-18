@@ -3,6 +3,9 @@ class AnalysisEngine {
     this.files = new Map();
     this.datasets = {};
     this.results = this.emptyResults();
+    this.analysisVersion = 0;
+    this._snapshotCache = {};
+    this.performance = {};
   }
 
   emptyResults() {
@@ -28,26 +31,40 @@ class AnalysisEngine {
       selectedEngine: "All Engines",
       dataset: {},
       timeline: [],
-      csvManager: []
+      csvManager: [],
+      crossCsv: null,
+      engineDna: null,
+      knowledgeGraph: null,
+      workspace: null,
+      hypothesis: null,
+      hypothesisLineage: null,
+      performance: {}
     };
   }
 
   async loadFiles(fileList) {
     const files = Array.from(fileList || []);
+    this.analysisVersion++;
+    this.invalidateCaches();
     for (const file of files) {
       if (!file.name.toLowerCase().endsWith(".csv")) continue;
       const text = await file.text();
       const parsed = parseCsv(text);
       const type = detectCsvType(file.name, parsed.headers);
-      const validation = validateCsv(file, type, parsed);
+      const normalized = normalizeCsvParsed(parsed, type);
+      const validation = validateCsv(file, type, normalized);
       this.files.set(type.key, {
         name: file.name,
         type,
         size: file.size,
         updated: file.lastModified ? new Date(file.lastModified) : null,
-        headers: parsed.headers,
-        rows: parsed.rows,
+        headers: normalized.headers,
+        originalHeaders: parsed.headers,
+        rows: normalized.rows,
         validation,
+        schemaVersion: CSV_SCHEMA_VERSION,
+        detectionMethod: type.detectionMethod || "Unknown",
+        aliasesApplied: normalized.aliasesApplied,
         replaced: this.files.has(type.key)
       });
     }
@@ -61,9 +78,12 @@ class AnalysisEngine {
     this.files.clear();
     this.datasets = {};
     this.results = this.emptyResults();
+    this.analysisVersion++;
+    this.invalidateCaches();
   }
 
   rebuild() {
+    if (typeof PerformanceUtil !== "undefined") PerformanceUtil.startTimer("Analysis");
     this.datasets = {
       tradeHistory: this.getRows("tradeHistory"),
       nearMiss: this.getRows("nearMiss"),
@@ -90,10 +110,42 @@ class AnalysisEngine {
     this.results.progress = analyzeResearchProgress(this.results);
     this.results.validation = Array.from(this.files.values()).map((file) => file.validation);
     this.results.dataset = buildDatasetSummary(Array.from(this.files.values()), this.results.trades);
+    if (typeof DataQualityEngine !== "undefined") {
+      this.results.dataQuality = new DataQualityEngine(this).snapshot();
+    }
     this.results.report = buildResearchReport(this.results);
     this.results.comparison = compareWithPrevious(this.results);
     this.results.timeline = loadResearchHistory();
     this.results.csvManager = buildCsvManager(Array.from(this.files.values()));
+    if (typeof CrossCsvEngine !== "undefined") {
+      this.results.crossCsv = new CrossCsvEngine(this).snapshot();
+    }
+    if (typeof EngineDnaEngine !== "undefined") {
+      this.results.engineDna = new EngineDnaEngine({ analysisEngine: this }).snapshot();
+    }
+    if (typeof ResearchHypothesisEngine !== "undefined") {
+      this.results.hypothesis = new ResearchHypothesisEngine({ analysisEngine: this, researchManager: typeof researchManager !== "undefined" ? researchManager : null }).snapshot();
+    }
+    if (typeof HypothesisLineageEngine !== "undefined") {
+      this.results.hypothesisLineage = new HypothesisLineageEngine({ analysisEngine: this, researchManager: typeof researchManager !== "undefined" ? researchManager : null }).snapshot();
+    }
+    if (typeof KnowledgeGraphEngine !== "undefined") {
+      this.results.knowledgeGraph = new KnowledgeGraphEngine({ analysisEngine: this }).snapshot();
+    }
+    if (typeof ResearchWorkspaceEngine !== "undefined") {
+      this.results.workspace = new ResearchWorkspaceEngine({ analysisEngine: this, researchManager: typeof researchManager !== "undefined" ? researchManager : null }).snapshot();
+    }
+    this.performance = typeof PerformanceUtil !== "undefined" ? PerformanceUtil.analysisStatistics(this) : {};
+    this.results.performance = this.performance;
+    if (typeof PerformanceUtil !== "undefined") {
+      PerformanceUtil.stopTimer("Analysis");
+      this.performance = PerformanceUtil.analysisStatistics(this);
+      this.results.performance = this.performance;
+    }
+  }
+
+  invalidateCaches() {
+    this._snapshotCache = {};
   }
 
   getRows(key) {
@@ -102,14 +154,47 @@ class AnalysisEngine {
 
   getPrompt() {
     const top = this.results.intelligence.slice(0, 8);
+    const cross = this.results.crossCsv;
+    const kg = this.results.knowledgeGraph;
+    const workspace = this.results.workspace;
+    const hypothesis = this.results.hypothesis;
     const lines = [
-      "Analyze this ScalpLayer Analyzer v3.0 result.",
+      "Analyze this ScalpLayer Research Lab v5.0 result.",
       "",
       "Goal:",
       "Find Research candidates from real CSV data. Do not suggest immediate trading-condition changes.",
       "",
       "Research Report:",
       this.results.report?.text || "No report.",
+      "",
+      "Cross CSV Insight:",
+      cross?.insight || "Cross CSV Intelligence has not been generated yet.",
+      "",
+      "Cross CSV Recommendations:",
+      ...(cross?.recommendations || []).slice(0, 5).map((x, i) => `${i + 1}. ${x.stars} ${x.title} / ${x.target}: ${x.reason}`),
+      "",
+      "Knowledge Graph Insight:",
+      ...(kg?.insight || ["Knowledge Graph has not been generated yet."]),
+      "",
+      "Knowledge Graph Summary:",
+      `LargestCluster=${kg?.largestCluster?.label || "-"}`,
+      `ResearchHub=${kg?.researchHub?.label || "-"}`,
+      `TopConnectedEngine=${kg?.topConnectedEngine?.label || "-"}`,
+      `TopConnectedTopNG=${kg?.topConnectedTopNg?.label || "-"}`,
+      "",
+      "Workspace Summary:",
+      `TodaysFocus=${workspace?.summary?.title || "-"}`,
+      `WorkspaceReason=${workspace?.summary?.reason || "-"}`,
+      `WorkspaceNext=${workspace?.summary?.next || "-"}`,
+      "",
+      "Hypothesis Summary:",
+      `TopHypothesis=${hypothesis?.hypothesisSummary?.topTitle || "-"}`,
+      `TopHypothesisScore=${hypothesis?.hypothesisSummary?.topScore || 0}`,
+      `TopHypothesisConfidence=${hypothesis?.hypothesisSummary?.topConfidence || "-"}`,
+      `TopHypothesisScore2=${this.results.hypothesisLineage?.hypothesisLineageSummary?.topScore2 || 0}`,
+      `TopHypothesisConfidencePercent=${this.results.hypothesisLineage?.hypothesisLineageSummary?.topConfidencePercent || 0}`,
+      `LargestHypothesisFamily=${this.results.hypothesisLineage?.hypothesisLineageSummary?.largestFamily || "-"}`,
+      `OrphanHypotheses=${this.results.hypothesisLineage?.hypothesisLineageSummary?.orphanCount || 0}`,
       "",
       "Top Research Candidates:"
     ];
@@ -119,7 +204,7 @@ class AnalysisEngine {
       lines.push(`Reason: ${s.reason}`);
     });
     lines.push("");
-    lines.push("Please analyze Trade, NearMiss, TopNG, Session, Condition, Engine Health, and Research Timeline. Propose the next Research direction only.");
+    lines.push("Please analyze Trade, NearMiss, TopNG, Session, Condition, Engine Health, Cross CSV relation, Research Timeline, Engine DNA, Knowledge Graph, Research Workspace, Research Hypothesis, Hypothesis Lineage, Evidence Weighting, and Validation Readiness. Propose the next Research direction only.");
     return lines.join("\n");
   }
 }
@@ -138,6 +223,27 @@ class AIAnalysisEngine {
   }
 }
 
+const CSV_SCHEMA_VERSION = "4.0.1";
+
+const CSV_COLUMN_ALIASES = {
+  DateTime: ["DateTime", "datetime", "server_time", "jst_time", "timestamp", "time", "Time"],
+  Date: ["Date", "date"],
+  Time: ["Time", "time"],
+  Engine: ["Engine", "engine", "EngineName", "engine_name", "Rule", "rule", "Strategy", "strategy"],
+  Session: ["Session", "session", "MarketSession", "market_session"],
+  Direction: ["Direction", "direction", "BUYSELL", "Side", "side"],
+  RSI: ["RSI", "rsi"],
+  ATR: ["ATR", "atr"],
+  Spread: ["Spread", "spread", "SpreadPips", "spread_pips"],
+  FullSignal: ["FullSignal", "full_signal", "FullSignalTrue", "fullSignal"],
+  TimeOK: ["TimeOK", "time_ok"],
+  RecentPips: ["RecentPips", "recent_pips", "Recent3", "Recent3Pips", "RecentDrop", "RecentRise"],
+  Entry: ["Entry", "entry", "EntryFlag", "entry_flag", "EntryPrice", "OpenPrice"],
+  Pips: ["Pips", "pips", "ProfitPips"],
+  Profit: ["Profit", "profit", "ProfitYen"],
+  HoldingMinutes: ["HoldingMinutes", "holding_minutes", "Holding", "HoldingTime"]
+};
+
 const REQUIRED_COLUMNS = {
   tradeHistory: ["Engine", "Pips"],
   nearMiss: ["Engine"],
@@ -155,7 +261,7 @@ const CSV_TYPES = [
   { key: "engineActivity", names: ["engineactivity.csv"], label: "EngineActivity.csv", version: "v1", description: "Engine activity stats", usage: "Engine / Research Intelligence" },
   { key: "engineRuntime", names: ["engineruntime.csv"], label: "EngineRuntime.csv", version: "v1", description: "Engine ACTIVE / WAIT history", usage: "CSV Manager" },
   { key: "sessionResearch", names: ["sessionresearch.csv"], label: "SessionResearch.csv", version: "v1", description: "Session and Engine condition stats", usage: "Session" },
-  { key: "signalLog", names: ["scalplayer_integrated_signal_log.csv", "signallog.csv"], label: "ScalpLayer_Integrated_signal_log.csv", version: "v1", description: "Signal history", usage: "Signal" }
+  { key: "signalLog", names: ["scalplayer_integrated_signal_log.csv", "scalplayer_corerulee_signal_log.csv", "corerulee_signal_log.csv", "core_rule_e_signal_log.csv", "signallog.csv"], label: "Signal Log", version: "v1", description: "Signal history", usage: "Signal" }
 ];
 
 function parseCsv(text) {
@@ -200,13 +306,26 @@ function parseCsv(text) {
 
 function detectCsvType(name, headers) {
   const lower = name.toLowerCase();
-  const hit = CSV_TYPES.find((type) => type.names.includes(lower));
-  if (hit) return hit;
-  const headerText = headers.join(",").toLowerCase();
-  if (headerText.includes("nearmiss")) return CSV_TYPES.find((t) => t.key === "nearMiss");
-  if (headerText.includes("fullsignaltruecount")) return CSV_TYPES.find((t) => t.key === "engineActivityV2");
-  if (headerText.includes("engine") && headerText.includes("entry") && headerText.includes("exit")) return CSV_TYPES.find((t) => t.key === "tradeHistory");
-  return { key: `unknown:${lower}`, names: [lower], label: name, version: "unknown", description: "Unknown CSV", usage: "CSV Manager" };
+  const exact = CSV_TYPES.find((type) => type.names.includes(lower));
+  if (exact) return { ...exact, detectionMethod: "Exact File Name" };
+  const partial = CSV_TYPES.find((type) => type.names.some((n) => lower.includes(n.replace(".csv", ""))));
+  if (partial) return { ...partial, detectionMethod: "Partial File Name" };
+
+  const canonicalHeaders = normalizeCsvHeaders(headers);
+  const headerSet = new Set(canonicalHeaders.map((h) => h.toLowerCase()));
+  const has = (name) => headerSet.has(name.toLowerCase());
+
+  if (has("Engine") && (has("FullSignal") || has("TimeOK")) && (has("Direction") || has("RSI"))) {
+    return { ...CSV_TYPES.find((t) => t.key === "signalLog"), detectionMethod: "Header Pattern" };
+  }
+  if (has("Engine") && has("Pips")) return { ...CSV_TYPES.find((t) => t.key === "tradeHistory"), detectionMethod: "Required Header Set" };
+  if (has("Engine") && (has("NGReasons") || has("NGReason") || has("NGCount"))) return { ...CSV_TYPES.find((t) => t.key === "nearMiss"), detectionMethod: "Header Pattern" };
+  if (has("FullSignalTrueCount")) return { ...CSV_TYPES.find((t) => t.key === "engineActivityV2"), detectionMethod: "Header Pattern" };
+  if (has("Engine") && has("Status")) return { ...CSV_TYPES.find((t) => t.key === "engineRuntime"), detectionMethod: "Required Header Set" };
+  if (has("Session") && has("Engine")) return { ...CSV_TYPES.find((t) => t.key === "sessionResearch"), detectionMethod: "Required Header Set" };
+  if (has("Engine") && (has("CheckCount") || has("TimeOKCount"))) return { ...CSV_TYPES.find((t) => t.key === "engineActivity"), detectionMethod: "Header Pattern" };
+
+  return { key: `unknown:${lower}`, names: [lower], label: name, version: "unknown", description: "Unknown CSV", usage: "CSV Manager", detectionMethod: "Unknown" };
 }
 
 function validateCsv(file, type, parsed) {
@@ -214,8 +333,10 @@ function validateCsv(file, type, parsed) {
   const headerSet = new Set(parsed.headers.map((h) => h.toLowerCase()));
   const missing = required.filter((col) => !headerSet.has(col.toLowerCase()));
   const warnings = [];
+  const info = [];
   if (type.key.startsWith("unknown:")) warnings.push("Unknown CSV type. This file was skipped by analysis.");
-  if (!parsed.rows.length) warnings.push("Empty CSV.");
+  if (!parsed.rows.length && !type.key.startsWith("unknown:")) warnings.push(`${type.label}: recognized, but no data rows were found.`);
+  if (parsed.aliasesApplied?.length) info.push(...parsed.aliasesApplied.map((x) => `${x.from} -> ${x.to}`));
   if (missing.length) warnings.push(`Missing required columns: ${missing.join(", ")}`);
   if (!parsed.headers.length) warnings.push("No header row found.");
   let status = "Valid";
@@ -227,13 +348,101 @@ function validateCsv(file, type, parsed) {
     fileName: file.name,
     csvType: type.label,
     version: type.version,
+    schemaVersion: CSV_SCHEMA_VERSION,
+    detectionMethod: type.detectionMethod || "Unknown",
+    aliasesApplied: parsed.aliasesApplied || [],
     requiredColumns: required,
     missingColumns: missing,
+    originalHeaders: parsed.originalHeaders || parsed.headers,
+    normalizedHeaders: parsed.headers,
     rows: parsed.rows.length,
     headers: parsed.headers.length,
     status,
-    warnings
+    warnings,
+    info
   };
+}
+
+function normalizeCsvParsed(parsed, type) {
+  const headers = normalizeCsvHeaders(parsed.headers);
+  const aliasesApplied = [];
+  parsed.headers.forEach((original, index) => {
+    if (headers[index] !== original) aliasesApplied.push({ from: original, to: headers[index] });
+  });
+  const rows = parsed.rows.map((row) => normalizeCsvRow(row, type));
+  return {
+    originalHeaders: parsed.headers,
+    headers,
+    rows,
+    aliasesApplied
+  };
+}
+
+function normalizeCsvHeaders(headers = []) {
+  return headers.map((header) => canonicalColumnName(header));
+}
+
+function normalizeCsvRow(row, csvType) {
+  const normalized = { ...row };
+  Object.keys(CSV_COLUMN_ALIASES).forEach((canonical) => {
+    const value = resolveAlias(row, canonical);
+    if (value !== undefined) normalized[canonical] = normalizeCsvValue(canonical, value);
+  });
+  if (csvType?.key === "signalLog") {
+    normalizeSignalLogRow(normalized);
+  }
+  return normalized;
+}
+
+function resolveAlias(row, canonicalName) {
+  const aliases = CSV_COLUMN_ALIASES[canonicalName] || [canonicalName];
+  const lowerMap = Object.fromEntries(Object.keys(row || {}).map((key) => [key.toLowerCase(), key]));
+  for (const alias of aliases) {
+    const key = lowerMap[String(alias).toLowerCase()];
+    if (key !== undefined) return row[key];
+  }
+  return undefined;
+}
+
+function canonicalColumnName(header) {
+  const h = String(header || "").trim();
+  for (const [canonical, aliases] of Object.entries(CSV_COLUMN_ALIASES)) {
+    if (aliases.some((alias) => String(alias).toLowerCase() === h.toLowerCase())) return canonical;
+  }
+  return h;
+}
+
+function normalizeSignalLogRow(row) {
+  row.Engine = clean(row.Engine) || "";
+  row.Direction = clean(row.Direction) || "";
+  row.Session = clean(row.Session) || "";
+  row.DateTime = clean(row.DateTime) || "";
+  row.RSI = safeNumber(row.RSI);
+  row.ATR = safeNumber(row.ATR);
+  row.Spread = safeNumber(row.Spread);
+  row.RecentPips = safeNumber(row.RecentPips);
+  row.Entry = row.Entry === undefined ? "" : normalizeBoolean(row.Entry);
+  row.TimeOK = row.TimeOK === undefined ? "" : normalizeBoolean(row.TimeOK);
+  row.FullSignal = row.FullSignal === undefined ? "" : normalizeBoolean(row.FullSignal);
+}
+
+function normalizeCsvValue(canonical, value) {
+  if (["RSI", "ATR", "Spread", "RecentPips", "Entry", "Pips", "Profit", "HoldingMinutes"].includes(canonical)) return safeNumber(value);
+  if (["FullSignal", "TimeOK"].includes(canonical)) return normalizeBoolean(value);
+  return value;
+}
+
+function safeNumber(value) {
+  if (value === "" || value === null || value === undefined) return null;
+  const n = Number(String(value).replace(/,/g, ""));
+  return Number.isFinite(n) ? n : null;
+}
+
+function normalizeBoolean(value) {
+  const v = String(value ?? "").trim().toLowerCase();
+  if (["true", "1", "yes", "ok"].includes(v)) return true;
+  if (["false", "0", "no", "ng"].includes(v)) return false;
+  return value;
 }
 
 function normalizeTrades(rows) {
@@ -669,9 +878,15 @@ function saveResearchSnapshot(results, files = []) {
     console.info("Duplicate snapshot skipped");
     return;
   }
+  const qualitySnapshot = results.dataQuality || null;
+  const workspaceSnapshot = typeof ResearchWorkspaceEngine !== "undefined" ? new ResearchWorkspaceEngine({ analysisEngine: { results, datasets: {}, analysisVersion: results.performance?.analysisVersion || 0, _snapshotCache: {} }, researchManager: typeof researchManager !== "undefined" ? researchManager : null }).snapshot() : null;
+  const hypothesisSnapshot = typeof ResearchHypothesisEngine !== "undefined" ? new ResearchHypothesisEngine({ analysisEngine: { results, datasets: {}, analysisVersion: results.performance?.analysisVersion || 0, _snapshotCache: {} }, researchManager: typeof researchManager !== "undefined" ? researchManager : null }).snapshot() : null;
+  const hypothesisLineageSnapshot = typeof HypothesisLineageEngine !== "undefined" ? new HypothesisLineageEngine({ analysisEngine: { results: { ...results, hypothesis: hypothesisSnapshot }, datasets: {}, analysisVersion: results.performance?.analysisVersion || 0, _snapshotCache: {} }, researchManager: typeof researchManager !== "undefined" ? researchManager : null }).snapshot() : null;
   const snapshot = {
     fingerprint,
     datetime: new Date().toISOString(),
+    analysisVersion: results.performance?.analysisVersion || 0,
+    performance: results.performance || {},
     datasetStart: results.dataset.datasetStart,
     datasetEnd: results.dataset.datasetEnd,
     datasetDays: results.dataset.datasetDays,
@@ -681,6 +896,13 @@ function saveResearchSnapshot(results, files = []) {
     nearMiss: results.nearMiss.total || 0,
     winRate: results.dashboard.winRate || 0,
     profitFactor: results.dashboard.profitFactor || 0,
+    qualityScore: qualitySnapshot?.qualityScore || 0,
+    dataQuality: qualitySnapshot ? {
+      qualityScore: qualitySnapshot.qualityScore,
+      confidence: qualitySnapshot.confidence,
+      dataQuality: qualitySnapshot.dataQuality,
+      reliability: qualitySnapshot.reliability?.percent || 0
+    } : null,
     checks: results.engineActivity.reduce((acc, x) => acc + x.checks, 0),
     engineRank: results.engineActivity.slice(0, 8).map((x) => ({ name: x.engine, health: x.health, score: x.score, confidence: x.confidence, entries: x.entries, timeOk: x.timeOk, checks: x.checks, fullSignal: x.full, entryRate: x.entryRate, topNG: x.topNg })),
     topEngines: results.tradeByEngine.slice(0, 5).map((x) => ({ name: x.name, trades: x.trades, pips: round(x.pips), winRate: round(x.winRate) })),
@@ -688,7 +910,54 @@ function saveResearchSnapshot(results, files = []) {
     topNG: results.nearMiss.ngReasons.slice(0, 5),
     conditionRank: results.condition.slice(0, 8).map((x) => ({ condition: x.condition, score: x.score, nearMiss: x.nearMiss })),
     sessionRank: results.session.slice(0, 4).map((x) => ({ session: x.session, score: x.score, trades: x.trades, nearMiss: x.nearMiss })),
-    engineHealth: results.engineActivity.map((x) => ({ engine: x.engine, health: x.health }))
+    engineHealth: results.engineActivity.map((x) => ({ engine: x.engine, health: x.health })),
+    crossSummary: results.crossCsv?.crossSummary || null,
+    crossCorrelationScore: results.crossCsv?.correlationScore || 0,
+    engineCorrelation: results.crossCsv?.engineCorrelation?.slice(0, 8) || [],
+    sessionCorrelation: results.crossCsv?.sessionCorrelation || [],
+    signalCorrelation: results.crossCsv?.signalCorrelation || null,
+    opportunityMatrix: results.crossCsv?.opportunityMatrix?.slice(0, 8) || [],
+    crossRecommendations: results.crossCsv?.recommendations?.slice(0, 8) || [],
+    engineDNA: results.engineDna?.profiles?.slice(0, 12) || [],
+    engineCluster: results.engineDna?.clusters || [],
+    engineSimilarity: results.engineDna?.similarity?.slice(0, 12) || [],
+    engineEvolution: results.engineDna?.evolution || [],
+    engineDnaSummary: results.engineDna?.summary || "",
+    knowledgeGraph: results.knowledgeGraph ? {
+      nodes: results.knowledgeGraph.nodes.slice(0, 60),
+      edges: results.knowledgeGraph.edges.slice(0, 120)
+    } : null,
+    graphSummary: results.knowledgeGraph?.graphSummary || null,
+    graphStatistics: results.knowledgeGraph?.graphStatistics || null,
+    largestCluster: results.knowledgeGraph?.largestCluster || null,
+    researchHub: results.knowledgeGraph?.researchHub || null,
+    topConnectedEngine: results.knowledgeGraph?.topConnectedEngine || null,
+    dependencyGraph: results.knowledgeGraph?.dependencyGraph || null,
+    workspace: workspaceSnapshot ? {
+      focus: workspaceSnapshot.focus,
+      queue: workspaceSnapshot.queue.slice(0, 12),
+      bookmarks: workspaceSnapshot.bookmarks,
+      pins: workspaceSnapshot.pins,
+      recentActivity: workspaceSnapshot.recentActivity
+    } : null,
+    workspaceSummary: workspaceSnapshot?.summary || null,
+    bookmark: workspaceSnapshot?.bookmarks || [],
+    pin: workspaceSnapshot?.pins || [],
+    recentActivity: workspaceSnapshot?.recentActivity || [],
+    hypothesis: hypothesisSnapshot?.hypotheses || [],
+    hypothesisSummary: hypothesisSnapshot?.hypothesisSummary || null,
+    evidenceSummary: hypothesisSnapshot?.evidenceSummary || null,
+    contradictions: hypothesisSnapshot?.contradictions || [],
+    openQuestions: hypothesisSnapshot?.openQuestions || [],
+    hypothesisLineageSummary: hypothesisLineageSnapshot?.hypothesisLineageSummary || null,
+    hypothesisFamilyCount: hypothesisLineageSnapshot?.hypothesisFamilies?.length || 0,
+    hypothesisRelationCount: hypothesisLineageSnapshot?.hypothesisRelations?.length || 0,
+    orphanHypothesisCount: hypothesisLineageSnapshot?.orphanHypotheses?.length || 0,
+    duplicateHypothesisCount: hypothesisLineageSnapshot?.duplicateHypotheses?.length || 0,
+    averageWeightedEvidence: hypothesisLineageSnapshot?.hypothesisLineageSummary?.averageWeightedEvidence || 0,
+    averageValidationReadiness: hypothesisLineageSnapshot?.hypothesisLineageSummary?.averageValidationReadiness || 0,
+    topHypothesisScore2: hypothesisLineageSnapshot?.hypothesisLineageSummary?.topScore2 || 0,
+    topHypothesisConfidencePercent: hypothesisLineageSnapshot?.hypothesisLineageSummary?.topConfidencePercent || 0
   };
   history.push(snapshot);
   localStorage.setItem("scalplayerResearchHistory", JSON.stringify(history.slice(-100)));
@@ -838,10 +1107,48 @@ function dedupeSuggestions(items) {
 }
 
 function buildCsvManager(files) {
-  return CSV_TYPES.map((type) => {
+  const known = CSV_TYPES.map((type) => {
     const file = files.find((f) => f.type.key === type.key);
-    return { label: type.label, exists: Boolean(file), rows: file?.rows.length || 0, columns: file?.headers.length || 0, updated: file?.updated, version: type.version, description: type.description, usage: type.usage, validation: file?.validation?.status || "Not loaded", warnings: file?.validation?.warnings || [], replaced: Boolean(file?.replaced) };
+    return {
+      label: type.label,
+      exists: Boolean(file),
+      rows: file?.rows.length || 0,
+      columns: file?.headers.length || 0,
+      updated: file?.updated,
+      version: type.version,
+      schemaVersion: file?.schemaVersion || CSV_SCHEMA_VERSION,
+      description: type.description,
+      usage: type.usage,
+      detectedType: file?.type.label || type.label,
+      detectionMethod: file?.detectionMethod || "Not loaded",
+      originalColumns: file?.originalHeaders?.join(" / ") || "-",
+      normalizedColumns: file?.headers?.join(" / ") || "-",
+      aliasesApplied: file?.aliasesApplied?.map((x) => `${x.from}->${x.to}`).join(" / ") || "-",
+      validation: file?.validation?.status || "Not loaded",
+      warnings: [...(file?.validation?.info || []).map((x) => `Info: ${x}`), ...(file?.validation?.warnings || []).map((x) => `Warning: ${x}`)],
+      replaced: Boolean(file?.replaced)
+    };
   });
+  const unknown = files.filter((f) => f.type.key.startsWith("unknown:")).map((file) => ({
+    label: file.name,
+    exists: true,
+    rows: file.rows.length,
+    columns: file.headers.length,
+    updated: file.updated,
+    version: "unknown",
+    schemaVersion: CSV_SCHEMA_VERSION,
+    description: "Unknown CSV",
+    usage: "Skipped",
+    detectedType: file.type.label,
+    detectionMethod: file.detectionMethod || "Unknown",
+    originalColumns: file.originalHeaders?.join(" / ") || "-",
+    normalizedColumns: file.headers?.join(" / ") || "-",
+    aliasesApplied: file.aliasesApplied?.map((x) => `${x.from}->${x.to}`).join(" / ") || "-",
+    validation: file.validation?.status || "Unknown CSV",
+    warnings: [...(file.validation?.info || []).map((x) => `Info: ${x}`), ...(file.validation?.warnings || []).map((x) => `Warning: ${x}`)],
+    replaced: Boolean(file.replaced)
+  }));
+  return [...known, ...unknown];
 }
 
 function normalizeConditionName(name) {
@@ -920,6 +1227,16 @@ function buildDatasetSummary(files, trades) {
     datasetEnd: end ? end.toISOString().slice(0, 10) : "",
     datasetDays: days,
     loadedCsvTypes: files.map((f) => f.type.label),
+    csvSchemaVersion: CSV_SCHEMA_VERSION,
+    csvFiles: files.map((f) => ({
+      name: f.name,
+      detectedType: f.type.label,
+      detectionMethod: f.detectionMethod,
+      schemaVersion: f.schemaVersion,
+      aliasesApplied: f.aliasesApplied || [],
+      rows: f.rows.length,
+      validation: f.validation?.status || ""
+    })),
     fileCount: files.length
   };
 }

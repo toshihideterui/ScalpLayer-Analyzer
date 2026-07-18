@@ -1,168 +1,127 @@
-# CSV Specification
+# CSV Specification v5.3
 
-ScalpLayer Analyzer v2.0 が対応するCSV仕様です。
+ScalpLayer Research Lab reads CSV files exported by ScalpLayer Integrated EA.
 
-存在しないCSVは自動でスキップされます。  
-列名の一部が異なる場合でも、可能な範囲で自動認識します。
+The Analyzer does not modify CSV files. It only normalizes column names internally and analyzes the loaded data in the browser.
 
-## 対応CSV一覧
+---
 
-| CSV | Version | 用途 | 更新タイミング | 使用画面 |
-|---|---:|---|---|---|
-| `TradeHistory.csv` | v1 | 実際の約定・決済履歴 | 決済成功時 | Dashboard / Trade / Intelligence |
-| `NearMissHistory.csv` | v1 | FullSignal直前で不成立だった履歴 | NearMiss発生時 | NearMiss / Intelligence |
-| `EngineActivity.csv` | v1 | Engine別の活動統計 | 定期出力 / 終了時 | Engine / Intelligence |
-| `EngineActivity_v2.csv` | v2 | Engine別の活動統計。EntryRate対応 | 定期出力 / 終了時 | Engine / Intelligence |
-| `EngineRuntime.csv` | v1 | EngineのACTIVE / WAIT履歴 | Engine状態変化時 | CSV Manager |
-| `SessionResearch.csv` | v1 | Session別・Engine別の条件成立統計 | 定期出力 / 終了時 | Session / Intelligence |
-| `ScalpLayer_Integrated_signal_log.csv` | v1 | Signal発生履歴 | Signal検出時 | Signal |
+## CSV Schema Version
 
-## TradeHistory.csv
+```text
+CSV_SCHEMA_VERSION = 4.0.1
+Analyzer Edition = v5.3 Hypothesis Lineage & Evidence Weighting Edition
+```
 
-### 用途
+v5.3 does not require a new CSV format. It adds Hypothesis Lineage, Evidence Weighting, Hypothesis History, Validation Readiness, and Hypothesis Compare on top of existing Analyzer results.
 
-実際に約定し、決済されたトレード履歴です。
+The CSV schema version remains `4.0.1`.
 
-### 主な列
+v5.3 localStorage keys:
 
-| 列 | 内容 |
+- `scalplayerHypothesisLineage`
+- `scalplayerEvidenceWeights`
+- `scalplayerHypothesisHistory`
+- `scalplayerHypothesisReview`
+
+No EA changes, no CSV changes, and no trading-condition changes are included in v5.3.
+
+---
+
+## Supported CSV
+
+| CSV | Purpose | Main Screen | Cross CSV Use |
+|---|---|---|---|
+| `TradeHistory.csv` | Executed trade history | Dashboard / Trade | WinRate, Profit, AveragePips, Engine performance |
+| `NearMissHistory.csv` | Almost-entry records | NearMiss / Research Intelligence | Bottleneck and opportunity detection |
+| `EngineActivity.csv` | Engine activity stats v1 | Engine / Research Intelligence | Checks, TimeOK, FullSignal, Entries, TopNG |
+| `EngineActivity_v2.csv` | Engine activity stats v2 | Engine / Research Intelligence | Preferred Engine Activity source |
+| `EngineRuntime.csv` | Engine ACTIVE / WAIT runtime history | CSV Manager | Reserved for future runtime correlation |
+| `SessionResearch.csv` | Session-level condition stats | Session | Session correlation and condition rates |
+| `ScalpLayer_Integrated_signal_log.csv` | Integrated EA signal history | Signal | Signal to Entry to Trade flow |
+| `ScalpLayer_CoreRuleE_signal_log.csv` | Core Rule E signal history | Signal | Signal Log compatible source |
+
+Unknown CSV files are skipped safely and shown in CSV Manager.
+
+---
+
+## Detection Order
+
+CSV type is detected in this order:
+
+1. Exact file name
+2. Partial file name
+3. Required header set
+4. Header pattern
+5. Unknown
+
+---
+
+## Column Alias Normalization
+
+The Analyzer accepts common column aliases and normalizes them internally.
+
+Examples:
+
+| Canonical | Accepted Aliases |
 |---|---|
-| Date | 日付 |
-| Time | 時刻 |
-| Engine | Engine名 |
-| BUYSELL / Side / Direction | BUYまたはSELL |
-| Entry | エントリー価格 |
-| Exit | 決済価格 |
-| Pips | 損益pips |
-| Profit | 損益金額 |
-| HoldingMinutes | 保有時間 |
-| ATR | ATR |
-| RSI | RSI |
-| Spread | スプレッド |
-| Volume | 出来高またはVolumeRatio |
-| BB | BB位置 |
-| Session | Tokyo / London / NY / Other |
+| `Engine` | `engine`, `EngineName`, `rule`, `Strategy` |
+| `Session` | `session`, `MarketSession` |
+| `Direction` | `BUYSELL`, `Side`, `side` |
+| `Spread` | `SpreadPips`, `spread_pips` |
+| `Pips` | `pips`, `ProfitPips` |
+| `Profit` | `ProfitYen`, `profit` |
+| `HoldingMinutes` | `Holding`, `HoldingTime` |
 
-## NearMissHistory.csv
+Signal Log compatibility:
 
-### 用途
+- If a signal CSV uses `rule`, it is treated as `Engine`.
+- Empty recognized CSV files are accepted as recognized-empty data.
 
-FullSignalにはならなかったが、あと少しで成立した候補を記録します。
+---
 
-### 主な列
+## Cross CSV Intelligence v4.2
 
-| 列 | 内容 |
-|---|---|
-| Date | 日付 |
-| Time | 時刻 |
-| Session | Session |
-| Engine | Engine名 |
-| Direction | BUYまたはSELL |
-| OKCount | OK条件数 |
-| NGCount | NG条件数 |
-| NGReasons | NG理由 |
-| RSI | RSI |
-| ATR | ATR |
-| Spread | Spread |
-| BB | BB位置 |
-| RecentDrop | 直近下落 |
-| RecentRise | 直近上昇 |
-| Volume | Volume |
-| Price | 価格 |
+Cross CSV Intelligence analyzes relationships between loaded CSV files.
 
-## EngineActivity.csv / EngineActivity_v2.csv
+It combines:
 
-### 用途
+```text
+TradeHistory
+  x NearMiss
+  x Signal Log
+  x Engine Activity
+  x Session Research
+```
 
-Engineが判定されているか、どの条件で止まっているかを確認します。
+It displays:
 
-### 主な列
+- Cross Summary
+- Engine Correlation
+- Session Correlation
+- NearMiss Correlation
+- Signal Correlation
+- Opportunity Matrix
+- Correlation Score
+- Cross Warning
+- Cross Recommendation
 
-| 列 | 内容 |
-|---|---|
-| Date | 日付 |
-| Time | 時刻 |
-| Engine | Engine名 |
-| Enabled | 有効状態 |
-| TimeWindowEnterCount | 時間帯に入った回数 |
-| CheckCount | 判定回数 |
-| TimeOKCount | 時間条件OK回数 |
-| FullSignalTrueCount | FullSignal成立回数 |
-| FullSignalFalseCount | FullSignal不成立回数 |
-| OrderAttemptCount | 発注試行回数 |
-| OrderSuccessCount | 発注成功回数 |
-| OrderFailedCount | 発注失敗回数 |
-| PositionOpenedCount | ポジション成立回数 |
-| PositionClosedCount | 決済完了回数 |
-| EntryRate | TimeOKに対するEntry率 |
-| TopNG1 / TopNG2 / TopNG3 | 主なNG理由 |
+Missing CSV files are skipped and reported as Cross Warning.
 
-## EngineRuntime.csv
+See `CROSS_CSV_INTELLIGENCE_SPECIFICATION.md` for full details.
 
-### 用途
+---
 
-各EngineがACTIVEかWAITかを確認します。
+## Safety Rules
 
-### 主な列
+The Analyzer never:
 
-| 列 | 内容 |
-|---|---|
-| Date | 日付 |
-| Time | 時刻 |
-| Session | Session |
-| Engine | Engine名 |
-| Status | ACTIVE / WAIT |
+- Changes EA source code
+- Changes trading conditions
+- Rewrites CSV files
+- Creates fake trades
+- Creates fake NearMiss rows
+- Guarantees profit
+- Calls external AI APIs
 
-## SessionResearch.csv
-
-### 用途
-
-時間帯ごとに条件成立率とNearMiss傾向を確認します。
-
-### 主な列
-
-| 列 | 内容 |
-|---|---|
-| Date | 日付 |
-| Session | Tokyo / London / NY / Other |
-| Engine | Engine名 |
-| Bars | 判定バー数 |
-| FullSignalTrue | FullSignal成立回数 |
-| Entries | Entry回数 |
-| NearMiss | NearMiss回数 |
-| RSI_OK | RSI条件OK回数 |
-| RecentDrop_OK | RecentDrop OK回数 |
-| RecentRise_OK | RecentRise OK回数 |
-| BB_OK | BB OK回数 |
-| ATR_OK | ATR OK回数 |
-| Vol_OK | Volume OK回数 |
-| Time_OK | Time OK回数 |
-| Spread_OK | Spread OK回数 |
-| TopNG1 / TopNG2 / TopNG3 | 主なNG理由 |
-
-## ScalpLayer_Integrated_signal_log.csv
-
-### 用途
-
-Signal発生数とEntry成功率を確認します。
-
-### 主な列
-
-| 列 | 内容 |
-|---|---|
-| Date | 日付 |
-| Time | 時刻 |
-| Engine | Engine名 |
-| Direction | BUYまたはSELL |
-| Signal | Signal内容 |
-| Result | 結果 |
-
-## 今後CSVが増える場合
-
-新しいCSVを追加する場合は、以下を決めてください。
-
-1. CSV名
-2. 更新タイミング
-3. 主な列
-4. どの画面で使うか
-5. Version
+All output is for Research planning only.

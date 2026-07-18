@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>ScalpLayer Research Lab v4.0</title>
+  <title>ScalpLayer Research Lab v5.3</title>
   <link rel="stylesheet" href="style.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 </head>
@@ -14,7 +14,7 @@
         <div class="brand-mark">SL</div>
         <div>
           <h1>ScalpLayer Research Lab</h1>
-          <p>AI Research Brain Edition v4.0</p>
+          <p>Hypothesis Lineage & Evidence Weighting Edition v5.3</p>
         </div>
       </div>
 
@@ -33,6 +33,7 @@
         <button class="tab active" data-tab="dashboard">Dashboard</button>
         <button class="tab" data-tab="lab">AI Research Report</button>
         <button class="tab" data-tab="engine">Engine</button>
+        <button class="tab" data-tab="engineDna">Engine DNA</button>
         <button class="tab" data-tab="condition">Condition</button>
         <button class="tab" data-tab="heatmap">HeatMap</button>
         <button class="tab" data-tab="session">Session</button>
@@ -40,11 +41,17 @@
         <button class="tab" data-tab="trade">Trade</button>
         <button class="tab" data-tab="signal">Signal</button>
         <button class="tab" data-tab="manager">CSV Manager</button>
+        <button class="tab" data-tab="dataQuality">Research Data Quality</button>
+        <button class="tab" data-tab="crossCsv">Cross CSV Intelligence</button>
         <button class="tab" data-tab="intelligence">Research Intelligence</button>
         <button class="tab" data-tab="researchManager">Research Manager</button>
         <button class="tab" data-tab="researchBoard">Research Board</button>
         <button class="tab" data-tab="portfolio">Research Portfolio</button>
+        <button class="tab" data-tab="workspace">Research Workspace</button>
+        <button class="tab" data-tab="hypothesis">Research Hypothesis</button>
+        <button class="tab" data-tab="lineage">Hypothesis Lineage</button>
         <button class="tab" data-tab="brain">AI Research Brain</button>
+        <button class="tab" data-tab="knowledgeGraph">Knowledge Graph</button>
         <button class="tab" data-tab="timeline">Research Timeline</button>
       </nav>
 
@@ -78,7 +85,14 @@
           <p>This tool never rewrites the EA or CSV. It only turns exported CSV data into Research candidates.</p>
         </div>
         <div id="labDashboard" class="research-strip"></div>
+        <div id="workspaceDashboard" class="card"></div>
+        <div id="hypothesisDashboard" class="card"></div>
+        <div id="lineageDashboard" class="card"></div>
+        <div id="engineDnaDashboard" class="card"></div>
+        <div id="knowledgeGraphDashboard" class="card"></div>
+        <div id="trendDashboard" class="card"></div>
         <div id="analysisWarnings" class="card"></div>
+        <div id="performancePanel" class="card"></div>
         <div id="progressPanel" class="card"></div>
         <div class="metric-grid" id="dashboardMetrics"></div>
         <div class="grid two">
@@ -110,6 +124,37 @@
         </div>
         <article class="card"><h3>NearMiss Deep Analysis</h3><div id="nearMissDeepTable"></div></article>
         <article class="card"><h3>Single Bottleneck Research</h3><div id="singleBottleneckTable"></div></article>
+      </section>
+
+      <section class="tab-panel" id="engineDna">
+        <div class="section-head"><h3>Engine DNA Analyzer</h3><p>Engine personality, similarity, cluster, strength, weakness, and evolution. No EA or CSV changes.</p></div>
+        <div class="hero-card" id="engineDnaOverview"></div>
+        <div class="metric-grid" id="engineDnaMetrics"></div>
+        <article class="card"><h3>DNA Profile</h3><div id="engineDnaProfiles"></div></article>
+        <div class="grid two">
+          <article class="card"><h3>Engine Personality</h3><div id="enginePersonality"></div></article>
+          <article class="card"><h3>Engine Stability</h3><div id="engineStability"></div></article>
+        </div>
+        <div class="grid two">
+          <article class="card"><h3>Engine Similarity</h3><div id="engineSimilarity"></div></article>
+          <article class="card"><h3>Engine Cluster</h3><div id="engineCluster"></div></article>
+        </div>
+        <div class="grid two">
+          <article class="card"><h3>Engine Strength</h3><div id="engineStrength"></div></article>
+          <article class="card"><h3>Engine Weakness</h3><div id="engineWeakness"></div></article>
+        </div>
+        <div class="grid two">
+          <article class="card"><h3>Hidden Opportunity</h3><div id="hiddenOpportunity"></div></article>
+          <article class="card"><h3>Engine Evolution</h3><div id="engineDnaEvolution"></div></article>
+        </div>
+        <article class="card">
+          <h3>Engine DNA Compare</h3>
+          <div class="form-grid compact">
+            <label>Engine A<select id="dnaCompareA"></select></label>
+            <label>Engine B<select id="dnaCompareB"></select></label>
+          </div>
+          <div id="engineDnaCompare"></div>
+        </article>
       </section>
 
       <section class="tab-panel" id="condition">
@@ -171,6 +216,50 @@
         <div class="section-head"><h3>CSV Manager</h3><p>Loaded CSV status and supported CSV versions.</p></div>
         <article class="card"><h3>Loaded CSV</h3><div id="csvManagerTable"></div></article>
         <article class="card"><h3>CSV Specification</h3><div id="csvSpecTable"></div></article>
+      </section>
+
+      <section class="tab-panel" id="dataQuality">
+        <div class="section-head"><h3>Research Data Quality</h3><p>Evaluates whether loaded CSV is reliable enough for Research. No EA or CSV changes.</p></div>
+        <div class="hero-card" id="qualityOverview"></div>
+        <div class="metric-grid" id="qualityMetrics"></div>
+        <div class="grid two">
+          <article class="card"><h3>CSV Health Dashboard</h3><div id="qualityCsvHealth"></div></article>
+          <article class="card"><h3>Confidence Score</h3><div id="qualityConfidence"></div></article>
+        </div>
+        <article class="card"><h3>CSV Coverage</h3><div id="qualityCoverage"></div></article>
+        <div class="grid two">
+          <article class="card"><h3>Missing Data Analysis</h3><div id="qualityMissing"></div></article>
+          <article class="card"><h3>Duplicate Analysis</h3><div id="qualityDuplicates"></div></article>
+        </div>
+        <div class="grid two">
+          <article class="card"><h3>Data Balance by Session</h3><div id="qualitySessionBalance"></div></article>
+          <article class="card"><h3>Engine Balance</h3><div id="qualityEngineBalance"></div></article>
+        </div>
+        <div class="grid two">
+          <article class="card"><h3>Time Coverage / Freshness</h3><div id="qualityTimeFreshness"></div></article>
+          <article class="card"><h3>Warning Center</h3><div id="qualityWarnings"></div></article>
+        </div>
+        <article class="card"><h3>Recommendation</h3><div id="qualityRecommendations"></div></article>
+      </section>
+
+      <section class="tab-panel" id="crossCsv">
+        <div class="section-head"><h3>Cross CSV Intelligence</h3><p>Correlates TradeHistory, NearMiss, Signal Log, Engine Activity, and Session Research. No EA or CSV changes.</p></div>
+        <div class="hero-card" id="crossOverview"></div>
+        <div class="metric-grid" id="crossMetrics"></div>
+        <article class="card"><h3>Performance</h3><div id="crossPerformance"></div></article>
+        <div class="grid two">
+          <article class="card"><h3>Engine Correlation</h3><div id="crossEngineCorrelation"></div></article>
+          <article class="card"><h3>Session Correlation</h3><div id="crossSessionCorrelation"></div></article>
+        </div>
+        <div class="grid two">
+          <article class="card"><h3>Signal Correlation</h3><div id="crossSignalCorrelation"></div></article>
+          <article class="card"><h3>NearMiss Correlation</h3><div id="crossNearMissCorrelation"></div></article>
+        </div>
+        <article class="card"><h3>Opportunity Matrix</h3><div id="crossOpportunityMatrix"></div></article>
+        <div class="grid two">
+          <article class="card"><h3>Cross Recommendation</h3><div id="crossRecommendations"></div></article>
+          <article class="card"><h3>Cross Warning</h3><div id="crossWarnings"></div></article>
+        </div>
       </section>
 
       <section class="tab-panel" id="intelligence">
@@ -238,6 +327,77 @@
         <article class="card"><h3>Stale Research</h3><div id="staleResearchTable"></div></article>
       </section>
 
+      <section class="tab-panel" id="workspace">
+        <div class="section-head"><h3>Research Workspace</h3><p>Today's Focus, Research Queue, Bookmarks, Pins, Recent Activity, and Workspace Memo. Research only.</p></div>
+        <div class="hero-card" id="workspaceOverview"></div>
+        <div class="metric-grid" id="workspaceMetrics"></div>
+        <div class="grid two">
+          <article class="card"><h3>Today's Focus Top3</h3><div id="todaysFocus"></div></article>
+          <article class="card"><h3>Workspace Memo</h3><textarea id="workspaceMemo" placeholder="Write your Research memo. This is stored in localStorage only and is not included in Analyzer Snapshot."></textarea><div class="memo-actions"><button id="saveWorkspaceMemoButton" class="ghost-button">Save Memo</button><span id="workspaceMemoStatus"></span></div></article>
+        </div>
+        <article class="card"><h3>Research Queue</h3><div id="researchQueue"></div></article>
+        <div class="grid two">
+          <article class="card"><h3>Bookmarks</h3><div id="workspaceBookmarks"></div></article>
+          <article class="card"><h3>Pinned Items</h3><div id="workspacePins"></div></article>
+        </div>
+        <article class="card"><h3>Recent Activity</h3><div id="workspaceRecentActivity"></div></article>
+      </section>
+
+      <section class="tab-panel" id="hypothesis">
+        <div class="section-head"><h3>Research Hypothesis</h3><p>Hypothesis, Evidence, Confidence, Contradiction, Open Questions, and Research Flow. Research only.</p></div>
+        <div class="hero-card" id="hypothesisOverview"></div>
+        <div class="metric-grid" id="hypothesisMetrics"></div>
+        <article class="card"><h3>Score 2.0 / Validation Readiness</h3><div id="hypothesisScore2Table"></div></article>
+        <article class="card"><h3>Research Flow</h3><div id="hypothesisFlow"></div></article>
+        <article class="card"><h3>Hypothesis List</h3><div id="hypothesisList"></div></article>
+        <div class="grid two">
+          <article class="card"><h3>Evidence Summary</h3><div id="evidenceSummary"></div></article>
+          <article class="card"><h3>Open Questions</h3><div id="openQuestions"></div></article>
+        </div>
+        <article class="card"><h3>Contradiction</h3><div id="hypothesisContradictions"></div></article>
+      </section>
+
+      <section class="tab-panel" id="lineage">
+        <div class="section-head"><h3>Hypothesis Lineage</h3><p>Hypothesis relations, evidence weighting, history, readiness, and compare. Research only.</p></div>
+        <div class="hero-card" id="lineageOverview"></div>
+        <div class="metric-grid" id="lineageMetrics"></div>
+        <article class="card">
+          <h3>Lineage Relation Editor</h3>
+          <div class="form-grid compact">
+            <label>Source Hypothesis<select id="lineageSource"></select></label>
+            <label>Relation Type<select id="lineageType"></select></label>
+            <label>Target Hypothesis<select id="lineageTarget"></select></label>
+            <label>Note<input id="lineageNote" type="text" placeholder="Relation note"></label>
+          </div>
+          <div class="memo-actions"><button id="addLineageRelationButton" class="ghost-button">Add Relation</button><span id="lineageRelationStatus"></span></div>
+        </article>
+        <div class="grid two">
+          <article class="card"><h3>Hypothesis Network</h3><div id="lineageNetwork"></div></article>
+          <article class="card"><h3>Lineage Statistics</h3><div id="lineageStatistics"></div></article>
+        </div>
+        <article class="card"><h3>Hypothesis Relations</h3><div id="lineageRelations"></div></article>
+        <article class="card"><h3>Hypothesis Families</h3><div id="lineageFamilies"></div></article>
+        <div class="grid two">
+          <article class="card"><h3>Evidence Weight Settings</h3><div id="evidenceWeightSettings"></div></article>
+          <article class="card"><h3>Weighted Evidence Summary</h3><div id="weightedEvidenceSummary"></div></article>
+        </div>
+        <article class="card"><h3>Validation Readiness</h3><div id="validationReadinessTable"></div></article>
+        <div class="grid two">
+          <article class="card"><h3>Duplicate Candidates</h3><div id="duplicateHypotheses"></div></article>
+          <article class="card"><h3>Orphan Hypotheses</h3><div id="orphanHypotheses"></div></article>
+        </div>
+        <article class="card"><h3>Superseded Hypotheses</h3><div id="supersededHypotheses"></div></article>
+        <article class="card">
+          <h3>Hypothesis Compare</h3>
+          <div class="form-grid compact">
+            <label>Hypothesis A<select id="compareHypothesisA"></select></label>
+            <label>Hypothesis B<select id="compareHypothesisB"></select></label>
+          </div>
+          <div id="hypothesisCompare"></div>
+        </article>
+        <article class="card"><h3>Hypothesis Activity Timeline</h3><div id="hypothesisTimeline"></div></article>
+      </section>
+
       <section class="tab-panel" id="brain">
         <div class="section-head"><h3>AI Research Brain</h3><p>Rule-based Research Advisor. No AI API, no EA rewrite, no CSV rewrite.</p></div>
         <div class="hero-card" id="brainOverview"></div>
@@ -245,6 +405,7 @@
           <article class="card"><h3>Today's Research Top5</h3><div id="brainRecommendations"></div></article>
           <article class="card"><h3>Research Overview</h3><div id="brainOverviewMetrics"></div></article>
         </div>
+        <article class="card"><h3>Performance Status</h3><div id="brainPerformance"></div></article>
         <div class="grid two">
           <article class="card"><h3>Research Bottleneck</h3><div id="brainBottlenecks"></div></article>
           <article class="card"><h3>Required Data Forecast</h3><div id="brainRequiredData"></div></article>
@@ -254,6 +415,10 @@
           <article class="card"><h3>Research Roadmap</h3><div id="brainRoadmap"></div></article>
           <article class="card"><h3>Research Timeline 2.0</h3><canvas id="brainTimelineChart"></canvas></article>
         </div>
+        <article class="card"><h3>Knowledge Graph Insight</h3><div id="brainKnowledgeGraph"></div></article>
+        <article class="card"><h3>Workspace Summary</h3><div id="brainWorkspaceSummary"></div></article>
+        <article class="card"><h3>Hypothesis Summary</h3><div id="brainHypothesisSummary"></div></article>
+        <article class="card"><h3>Hypothesis Lineage Summary</h3><div id="brainLineageSummary"></div></article>
         <div class="grid two">
           <article class="card"><h3>Research Quality Statistics</h3><div id="brainStatistics"></div></article>
           <article class="card"><h3>Research Risk</h3><div id="brainRisks"></div></article>
@@ -266,12 +431,52 @@
         <article class="card"><h3>Weekly / Monthly Summary</h3><div id="brainSummary"></div></article>
       </section>
 
-      <section class="tab-panel" id="timeline">
-        <div class="section-head"><h3>Research Timeline</h3><p>Local history, Engine Evolution, and Research Memo.</p></div>
+      <section class="tab-panel" id="knowledgeGraph">
+        <div class="section-head"><h3>Research Knowledge Graph</h3><p>Engine, Condition, Session, TopNG, Research, and Flow relationships. Research only. No EA or CSV changes.</p></div>
+        <div class="hero-card" id="knowledgeOverview"></div>
+        <div class="metric-grid" id="knowledgeMetrics"></div>
+        <article class="card"><h3>Knowledge Graph</h3><div id="knowledgeGraphView"></div></article>
         <div class="grid two">
-          <article class="card"><h3>Research Trend</h3><canvas id="timelineChart"></canvas></article>
-          <article class="card"><h3>Engine Evolution</h3><div id="engineEvolution"></div></article>
+          <article class="card"><h3>Engine Network</h3><div id="engineNetwork"></div></article>
+          <article class="card"><h3>Research Network</h3><div id="researchNetwork"></div></article>
         </div>
+        <div class="grid two">
+          <article class="card"><h3>Cluster Tree</h3><div id="clusterTree"></div></article>
+          <article class="card"><h3>Opportunity Flow</h3><div id="opportunityFlow"></div></article>
+        </div>
+        <div class="grid two">
+          <article class="card"><h3>Session Flow</h3><div id="sessionFlow"></div></article>
+          <article class="card"><h3>TopNG Network</h3><div id="topNgNetwork"></div></article>
+        </div>
+        <div class="grid two">
+          <article class="card"><h3>Dependency Graph</h3><div id="dependencyGraph"></div></article>
+          <article class="card"><h3>Statistics</h3><div id="graphStatistics"></div></article>
+        </div>
+      </section>
+
+      <section class="tab-panel" id="timeline">
+        <div class="section-head"><h3>Research Timeline & Trend Analysis</h3><p>Long-term Research trend, best/worst snapshots, milestones, and timeline events.</p></div>
+        <div class="hero-card" id="trendOverview"></div>
+        <div class="metric-grid" id="trendMetrics"></div>
+        <div class="grid two">
+          <article class="card"><h3>Trend Chart</h3><canvas id="timelineChart"></canvas></article>
+          <article class="card"><h3>Improvement Analysis</h3><div id="trendImprovement"></div></article>
+        </div>
+        <div class="grid two">
+          <article class="card"><h3>Long Term Trend</h3><div id="longTermTrend"></div></article>
+          <article class="card"><h3>Trend Forecast</h3><div id="trendForecast"></div></article>
+        </div>
+        <div class="grid two">
+          <article class="card"><h3>Best Snapshot</h3><div id="bestSnapshot"></div></article>
+          <article class="card"><h3>Worst Snapshot</h3><div id="worstSnapshot"></div></article>
+        </div>
+        <div class="grid two">
+          <article class="card"><h3>Milestones</h3><div id="trendMilestones"></div></article>
+          <article class="card"><h3>Trend Recommendation</h3><div id="trendRecommendations"></div></article>
+        </div>
+        <article class="card"><h3>Research History Compare</h3><div id="historyCompare"></div></article>
+        <article class="card"><h3>Timeline Events</h3><div id="timelineEvents"></div></article>
+        <article class="card"><h3>Engine Evolution</h3><div id="engineEvolution"></div></article>
         <article class="card">
           <h3>Research Memo</h3>
           <textarea id="researchMemo" placeholder="Example: 2026/07/18 Core Rule E NearMiss is increasing. RSI research planned."></textarea>
@@ -281,10 +486,19 @@
     </main>
   </div>
 
+  <script src="performanceUtil.js"></script>
   <script src="analysisEngine.js"></script>
   <script src="researchTemplates.js"></script>
   <script src="researchStorage.js"></script>
   <script src="researchManager.js"></script>
+  <script src="dataQualityEngine.js"></script>
+  <script src="crossCsvEngine.js"></script>
+  <script src="trendEngine.js"></script>
+  <script src="engineDnaEngine.js"></script>
+  <script src="knowledgeGraphEngine.js"></script>
+  <script src="researchWorkspaceEngine.js"></script>
+  <script src="researchHypothesisEngine.js"></script>
+  <script src="hypothesisLineageEngine.js"></script>
   <script src="recommendationEngine.js"></script>
   <script src="knowledgeEngine.js"></script>
   <script src="brainEngine.js"></script>
