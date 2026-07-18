@@ -1,155 +1,3 @@
-class AnalysisEngine {
-  constructor() {
-    this.files = new Map();
-    this.datasets = {};
-    this.results = this.emptyResults();
-  }
-
-  emptyResults() {
-    return {
-      dashboard: {},
-      trades: [],
-      tradeByEngine: [],
-      engineActivity: [],
-      nearMiss: {},
-      session: [],
-      signal: {},
-      suggestions: [],
-      csvManager: []
-    };
-  }
-
-  async loadFiles(fileList) {
-    const files = Array.from(fileList || []);
-    for (const file of files) {
-      if (!file.name.toLowerCase().endsWith(".csv")) continue;
-      const text = await file.text();
-      const parsed = parseCsv(text);
-      const type = detectCsvType(file.name, parsed.headers);
-      this.files.set(type.key, {
-        name: file.name,
-        type,
-        size: file.size,
-        updated: file.lastModified ? new Date(file.lastModified) : null,
-        headers: parsed.headers,
-        rows: parsed.rows
-      });
-    }
-    this.rebuild();
-    return this.results;
-  }
-
-  reset() {
-    this.files.clear();
-    this.datasets = {};
-    this.results = this.emptyResults();
-  }
-
-  rebuild() {
-    this.datasets = {
-      tradeHistory: this.getRows("tradeHistory"),
-      nearMiss: this.getRows("nearMiss"),
-      engineActivity: this.getRows("engineActivityV2").length ? this.getRows("engineActivityV2") : this.getRows("engineActivity"),
-      engineRuntime: this.getRows("engineRuntime"),
-      sessionResearch: this.getRows("sessionResearch"),
-      signalLog: this.getRows("signalLog")
-    };
-
-    this.results.trades = normalizeTrades(this.datasets.tradeHistory);
-    this.results.dashboard = analyzeDashboard(this.results.trades);
-    this.results.tradeByEngine = groupTradePerformance(this.results.trades, "engine");
-    this.results.engineActivity = analyzeEngineActivity(this.datasets.engineActivity);
-    this.results.nearMiss = analyzeNearMiss(this.datasets.nearMiss);
-    this.results.session = analyzeSessionResearch(this.datasets.sessionResearch, this.results.trades, this.datasets.nearMiss);
-    this.results.signal = analyzeSignals(this.datasets.signalLog, this.results.trades);
-    this.results.suggestions = buildSuggestions(this.results);
-    this.results.csvManager = buildCsvManager(Array.from(this.files.values()));
-  }
-
-  getRows(key) {
-    return this.files.get(key)?.rows || [];
-  }
-
-  getPrompt() {
-    const top = this.results.suggestions.slice(0, 3);
-    const lines = [
-      "このScalpLayer Analyzerの結果を分析してください。",
-      "",
-      "目的:",
-      "ScalpLayer USDJPY Integrated EAのリアル運用CSVから、勝ちやすい条件、負けやすい条件、次回Research候補を発見すること。",
-      "",
-      "Analyzer推奨Research候補:"
-    ];
-    top.forEach((s, i) => {
-      lines.push(`${i + 1}. ${s.engine} / ${s.theme} / Score ${s.stars}`);
-      lines.push(`理由: ${s.reason}`);
-    });
-    lines.push("");
-    lines.push("Engine、Session、Spread、Holding、RSI、ATR、BB、NearMiss、TopNGを総合評価してください。");
-    lines.push("条件をすぐ緩める提案ではなく、Research vNextで検証すべき仮説として整理してください。");
-    return lines.join("\n");
-  }
-}
-
-const CSV_TYPES = [
-  {
-    key: "tradeHistory",
-    names: ["tradehistory.csv"],
-    label: "TradeHistory.csv",
-    version: "Research Edition",
-    description: "実際の約定・決済履歴",
-    usage: "Dashboard / Trade Analysis / Suggestions"
-  },
-  {
-    key: "nearMiss",
-    names: ["nearmisshistory.csv"],
-    label: "NearMissHistory.csv",
-    version: "Session Research v34+",
-    description: "あと1〜2条件で不成立だった候補履歴",
-    usage: "Near Miss Analysis / Suggestions"
-  },
-  {
-    key: "engineActivityV2",
-    names: ["engineactivity_v2.csv"],
-    label: "EngineActivity_v2.csv",
-    version: "Engine Activity v2",
-    description: "Engine別活動統計。EntryRate列あり",
-    usage: "Engine Analysis / Suggestions"
-  },
-  {
-    key: "engineActivity",
-    names: ["engineactivity.csv"],
-    label: "EngineActivity.csv",
-    version: "Engine Activity",
-    description: "Engine別活動統計",
-    usage: "Engine Analysis / Suggestions"
-  },
-  {
-    key: "engineRuntime",
-    names: ["engineruntime.csv"],
-    label: "EngineRuntime.csv",
-    version: "Engine Monitor v35+",
-    description: "EngineのACTIVE / WAIT状態履歴",
-    usage: "CSV Manager / future runtime view"
-  },
-  {
-    key: "sessionResearch",
-    names: ["sessionresearch.csv"],
-    label: "SessionResearch.csv",
-    version: "Session Research v34+",
-    description: "時間帯別・Engine別の条件成立統計",
-    usage: "Session Analysis"
-  },
-  {
-    key: "signalLog",
-    names: ["scalplayer_integrated_signal_log.csv", "signallog.csv"],
-    label: "ScalpLayer_Integrated_signal_log.csv",
-    version: "Integrated EA",
-    description: "FullSignalや発注候補の記録",
-    usage: "Signal Analysis"
-  }
-];
-
 const engine = new AnalysisEngine();
 let charts = {};
 
@@ -157,6 +5,7 @@ document.addEventListener("DOMContentLoaded", () => {
   setupTabs();
   setupFileInput();
   setupButtons();
+  document.getElementById("researchMemo").value = loadMemo();
   renderAll();
 });
 
@@ -166,8 +15,7 @@ function setupTabs() {
       document.querySelectorAll(".tab").forEach((b) => b.classList.remove("active"));
       document.querySelectorAll(".tab-panel").forEach((p) => p.classList.remove("active"));
       button.classList.add("active");
-      const id = button.dataset.tab;
-      document.getElementById(id).classList.add("active");
+      document.getElementById(button.dataset.tab).classList.add("active");
       document.getElementById("pageTitle").textContent = button.textContent;
     });
   });
@@ -175,15 +23,9 @@ function setupTabs() {
 
 function setupFileInput() {
   const input = document.getElementById("csvFiles");
-  input.addEventListener("change", async (e) => {
-    await loadFiles(e.target.files);
-  });
-
+  input.addEventListener("change", async (e) => loadFiles(e.target.files));
   const zone = document.getElementById("dropZone");
-  zone.addEventListener("dragover", (e) => {
-    e.preventDefault();
-    zone.classList.add("dragover");
-  });
+  zone.addEventListener("dragover", (e) => { e.preventDefault(); zone.classList.add("dragover"); });
   zone.addEventListener("dragleave", () => zone.classList.remove("dragover"));
   zone.addEventListener("drop", async (e) => {
     e.preventDefault();
@@ -197,10 +39,16 @@ function setupButtons() {
     engine.reset();
     renderAll();
   });
-  document.getElementById("samplePromptButton").addEventListener("click", () => {
-    activateTab("suggestions");
+  document.getElementById("promptButton").addEventListener("click", () => {
+    activateTab("intelligence");
     document.getElementById("chatgptPrompt").focus();
     document.getElementById("chatgptPrompt").select();
+  });
+  document.getElementById("downloadHistoryButton").addEventListener("click", downloadHistory);
+  document.getElementById("saveMemoButton").addEventListener("click", () => {
+    saveMemo(document.getElementById("researchMemo").value);
+    document.getElementById("memoStatus").textContent = "保存しました";
+    setTimeout(() => document.getElementById("memoStatus").textContent = "", 1800);
   });
 }
 
@@ -213,755 +61,269 @@ function activateTab(id) {
   document.querySelector(`.tab[data-tab="${id}"]`)?.click();
 }
 
-function parseCsv(text) {
-  const rows = [];
-  let row = [];
-  let field = "";
-  let inQuotes = false;
-  const normalized = text.replace(/^\uFEFF/, "");
-
-  for (let i = 0; i < normalized.length; i++) {
-    const char = normalized[i];
-    const next = normalized[i + 1];
-    if (char === '"' && inQuotes && next === '"') {
-      field += '"';
-      i++;
-    } else if (char === '"') {
-      inQuotes = !inQuotes;
-    } else if (char === "," && !inQuotes) {
-      row.push(field);
-      field = "";
-    } else if ((char === "\n" || char === "\r") && !inQuotes) {
-      if (char === "\r" && next === "\n") i++;
-      row.push(field);
-      field = "";
-      if (row.some((v) => v.trim() !== "")) rows.push(row);
-      row = [];
-    } else {
-      field += char;
-    }
-  }
-  if (field || row.length) {
-    row.push(field);
-    if (row.some((v) => v.trim() !== "")) rows.push(row);
-  }
-
-  const headers = (rows.shift() || []).map((h) => h.trim());
-  const objects = rows.map((values) => {
-    const obj = {};
-    headers.forEach((header, index) => {
-      obj[header] = values[index] ?? "";
-    });
-    return obj;
-  });
-  return { headers, rows: objects };
-}
-
-function detectCsvType(name, headers) {
-  const lower = name.toLowerCase();
-  const found = CSV_TYPES.find((type) => type.names.includes(lower));
-  if (found) return found;
-
-  const headerText = headers.join("|").toLowerCase();
-  if (headerText.includes("ngreasons") && headerText.includes("okcount")) return CSV_TYPES.find((t) => t.key === "nearMiss");
-  if (headerText.includes("timewindowentercount") && headerText.includes("fullsignaltruecount")) return CSV_TYPES.find((t) => t.key === "engineActivityV2");
-  if (headerText.includes("entry") && headerText.includes("exit") && headerText.includes("pips")) return CSV_TYPES.find((t) => t.key === "tradeHistory");
-  if (headerText.includes("session") && headerText.includes("nearmiss")) return CSV_TYPES.find((t) => t.key === "sessionResearch");
-  if (headerText.includes("fullsignal") && headerText.includes("engine")) return CSV_TYPES.find((t) => t.key === "signalLog");
-  return { key: `unknown:${lower}`, label: name, version: "Unknown", description: "未分類CSV", usage: "CSV Manager" };
-}
-
-function normalizeTrades(rows) {
-  return rows.map((row, index) => {
-    const pips = num(getAny(row, ["Pips", "pips", "ProfitPips"]));
-    const profit = num(getAny(row, ["Profit", "profit", "ProfitYen", "損益円"]));
-    const value = Number.isFinite(profit) && profit !== 0 ? profit : pips;
-    const date = getAny(row, ["Date", "date"]);
-    const time = getAny(row, ["Time", "time"]);
-    return {
-      id: index + 1,
-      date,
-      time,
-      datetime: parseDateTime(date, time),
-      engine: normalizeEngine(getAny(row, ["Engine", "engine", "Rule"])),
-      direction: getAny(row, ["BUYSELL", "Direction", "Side", "BUY/SELL"]) || "-",
-      entry: num(getAny(row, ["Entry", "EntryPrice"])),
-      exit: num(getAny(row, ["Exit", "ExitPrice"])),
-      pips,
-      profit: Number.isFinite(profit) ? profit : pips,
-      value,
-      holding: num(getAny(row, ["HoldingMinutes", "Holding", "HoldingTime"])),
-      atr: num(getAny(row, ["ATR", "Atr"])),
-      rsi: num(getAny(row, ["RSI", "Rsi"])),
-      spread: num(getAny(row, ["Spread", "SpreadPips"])),
-      volume: num(getAny(row, ["Volume", "Vol"])),
-      recentDrop: num(getAny(row, ["RecentDrop"])),
-      recentRise: num(getAny(row, ["RecentRise"])),
-      bb: getAny(row, ["BB", "BBPosition", "Bb"]),
-      session: getAny(row, ["Session"]) || sessionFromTime(time),
-      spreadClass: getAny(row, ["SpreadClass"]) || spreadClass(num(getAny(row, ["Spread", "SpreadPips"]))),
-      holdingClass: getAny(row, ["HoldingClass"]) || holdingClass(num(getAny(row, ["HoldingMinutes", "Holding"]))),
-      result: getAny(row, ["Result"]) || (pips > 0 || profit > 0 ? "Win" : "Lose"),
-      reason: getAny(row, ["Reason"])
-    };
-  }).filter((t) => t.engine !== "-" || Number.isFinite(t.pips) || Number.isFinite(t.profit));
-}
-
-function analyzeDashboard(trades) {
-  const total = trades.length;
-  const wins = trades.filter((t) => t.value > 0);
-  const losses = trades.filter((t) => t.value < 0);
-  const grossProfit = sum(wins, "value");
-  const grossLoss = Math.abs(sum(losses, "value"));
-  const avgWin = wins.length ? grossProfit / wins.length : 0;
-  const avgLoss = losses.length ? sum(losses, "value") / losses.length : 0;
-  return {
-    total,
-    wins: wins.length,
-    losses: losses.length,
-    winRate: pct(wins.length, total),
-    profitFactor: grossLoss > 0 ? grossProfit / grossLoss : grossProfit > 0 ? Infinity : 0,
-    totalProfit: sum(trades, "value"),
-    avgProfit: total ? sum(trades, "value") / total : 0,
-    avgWin,
-    avgLoss,
-    maxDD: maxDrawdown(trades.map((t) => t.value)),
-    expectancy: total ? sum(trades, "pips") / total : 0,
-    largestWin: wins.length ? Math.max(...wins.map((t) => t.value)) : 0,
-    largestLoss: losses.length ? Math.min(...losses.map((t) => t.value)) : 0,
-    avgHolding: avg(trades, "holding")
-  };
-}
-
-function groupTradePerformance(trades, key) {
-  const groups = groupBy(trades, (t) => t[key] || "-");
-  return Object.entries(groups).map(([name, items]) => {
-    const wins = items.filter((t) => t.value > 0);
-    const losses = items.filter((t) => t.value < 0);
-    return {
-      name,
-      trades: items.length,
-      wins: wins.length,
-      losses: losses.length,
-      winRate: pct(wins.length, items.length),
-      profit: sum(items, "value"),
-      pips: sum(items, "pips"),
-      avgProfit: avg(items, "value"),
-      avgWin: wins.length ? avg(wins, "value") : 0,
-      avgLoss: losses.length ? avg(losses, "value") : 0,
-      avgHolding: avg(items, "holding"),
-      streak: streaks(items)
-    };
-  }).sort((a, b) => b.profit - a.profit);
-}
-
-function analyzeEngineActivity(rows) {
-  const latest = latestSnapshots(rows, ["Date", "Engine"]);
-  const groups = groupBy(latest, (r) => normalizeEngine(getAny(r, ["Engine"])));
-  return Object.entries(groups).map(([engineName, items]) => {
-    const topNg = {};
-    for (const item of items) {
-      addTopNg(topNg, getAny(item, ["TopNG1"]), num(getAny(item, ["TopNG1Count"])));
-      addTopNg(topNg, getAny(item, ["TopNG2"]), num(getAny(item, ["TopNG2Count"])));
-      addTopNg(topNg, getAny(item, ["TopNG3"]), num(getAny(item, ["TopNG3Count"])));
-    }
-    const totals = {
-      engine: engineName,
-      enabled: items.some((r) => asBool(getAny(r, ["Enabled"]))),
-      timeWindowEnter: sumCol(items, "TimeWindowEnterCount"),
-      checks: sumCol(items, "CheckCount"),
-      timeOk: sumCol(items, "TimeOKCount"),
-      full: sumCol(items, "FullSignalTrueCount"),
-      fullFalse: sumCol(items, "FullSignalFalseCount"),
-      attempts: sumCol(items, "OrderAttemptCount"),
-      success: sumCol(items, "OrderSuccessCount"),
-      failed: sumCol(items, "OrderFailedCount"),
-      entries: sumCol(items, "PositionOpenedCount"),
-      closed: sumCol(items, "PositionClosedCount"),
-      entryRate: 0,
-      topNg: Object.entries(topNg).sort((a, b) => b[1] - a[1]).slice(0, 3)
-    };
-    totals.entryRate = totals.timeOk ? totals.entries * 100 / totals.timeOk : 0;
-    return totals;
-  }).sort((a, b) => b.timeOk - a.timeOk);
-}
-
-function analyzeNearMiss(rows) {
-  const normalized = rows.map((r) => ({
-    date: getAny(r, ["Date"]),
-    time: getAny(r, ["Time"]),
-    session: getAny(r, ["Session"]) || sessionFromTime(getAny(r, ["Time"])),
-    engine: normalizeEngine(getAny(r, ["Engine"])),
-    direction: getAny(r, ["Direction"]),
-    ok: num(getAny(r, ["OKCount"])),
-    ng: num(getAny(r, ["NGCount"])),
-    reasons: splitReasons(getAny(r, ["NGReasons"])),
-    rsi: num(getAny(r, ["RSI"])),
-    atr: num(getAny(r, ["ATR"])),
-    spread: num(getAny(r, ["Spread"])),
-    bb: getAny(r, ["BB"]),
-    recentDrop: num(getAny(r, ["RecentDrop"])),
-    recentRise: num(getAny(r, ["RecentRise"]))
-  }));
-  const ng1 = normalized.filter((r) => r.ng === 1).length;
-  const ng2 = normalized.filter((r) => r.ng === 2).length;
-  const reasonCounts = {};
-  const engineCounts = {};
-  for (const row of normalized) {
-    engineCounts[row.engine] = (engineCounts[row.engine] || 0) + 1;
-    for (const reason of row.reasons) {
-      if (!reason || reason === "-") continue;
-      reasonCounts[reason] = (reasonCounts[reason] || 0) + 1;
-    }
-  }
-  const byEngine = Object.entries(engineCounts).map(([engineName, count]) => ({ engine: engineName, count }))
-    .sort((a, b) => b.count - a.count);
-  return {
-    rows: normalized,
-    total: normalized.length,
-    ng1,
-    ng2,
-    byEngine,
-    reasonRanking: Object.entries(reasonCounts).map(([reason, count]) => ({ reason, count }))
-      .sort((a, b) => b.count - a.count),
-    closest: byEngine[0] || null
-  };
-}
-
-function analyzeSessionResearch(sessionRows, trades, nearMissRows) {
-  const latest = latestSnapshots(sessionRows, ["Date", "Session", "Engine"]);
-  const groups = groupBy(latest, (r) => getAny(r, ["Session"]) || "Other");
-  const tradePerf = groupTradePerformance(trades, "session");
-  const nearGroups = groupBy(nearMissRows, (r) => getAny(r, ["Session"]) || "Other");
-  return ["Tokyo", "London", "NY", "Other"].map((session) => {
-    const items = groups[session] || [];
-    const perf = tradePerf.find((p) => p.name === session) || {};
-    const near = nearGroups[session]?.length || 0;
-    const bars = sumCol(items, "Bars");
-    return {
-      session,
-      bars,
-      trades: perf.trades || 0,
-      winRate: perf.winRate || 0,
-      profit: perf.profit || 0,
-      nearMiss: near,
-      rsiRate: pct(sumCol(items, "RSI_OK"), bars),
-      bbRate: pct(sumCol(items, "BB_OK"), bars),
-      atrRate: pct(sumCol(items, "ATR_OK"), bars),
-      volRate: pct(sumCol(items, "Vol_OK"), bars),
-      full: sumCol(items, "FullSignalTrue"),
-      entries: sumCol(items, "Entries")
-    };
-  });
-}
-
-function analyzeSignals(rows, trades) {
-  const normalized = rows.map((r) => ({
-    engine: normalizeEngine(getAny(r, ["Engine"])),
-    full: asBool(getAny(r, ["FullSignal", "Full", "Signal"])),
-    direction: getAny(r, ["Direction", "BUYSELL"])
-  }));
-  const byEngine = Object.entries(groupBy(normalized, (r) => r.engine)).map(([engineName, items]) => {
-    const tradeCount = trades.filter((t) => t.engine === engineName).length;
-    return {
-      engine: engineName,
-      signals: items.length,
-      full: items.filter((i) => i.full).length,
-      entries: tradeCount,
-      entryRate: items.length ? tradeCount * 100 / items.length : 0
-    };
-  }).sort((a, b) => b.signals - a.signals);
-  return {
-    total: normalized.length,
-    full: normalized.filter((r) => r.full).length,
-    byEngine
-  };
-}
-
-function buildSuggestions(results) {
-  const suggestions = [];
-
-  for (const item of results.engineActivity) {
-    const top = item.topNg[0];
-    if (!top) continue;
-    const score = scoreResearchCandidate(item.timeOk, item.full, item.entries, top[1]);
-    suggestions.push({
-      engine: item.engine,
-      theme: `${top[0]}閾値研究`,
-      stars: stars(score),
-      score,
-      reason: `TimeOK ${fmt(item.timeOk)}回に対してFull ${fmt(item.full)}回、Entries ${fmt(item.entries)}回。最大NGは${top[0]} ${fmt(top[1])}回です。`,
-      type: "EngineActivity"
-    });
-  }
-
-  if (results.nearMiss.closest) {
-    const c = results.nearMiss.closest;
-    suggestions.push({
-      engine: c.engine,
-      theme: "NearMiss解析",
-      stars: stars(Math.min(5, Math.max(2, Math.ceil(c.count / 10)))),
-      score: Math.min(5, Math.max(2, Math.ceil(c.count / 10))),
-      reason: `NearMissが${fmt(c.count)}件あります。あと1〜2条件で止まる候補を優先的にResearchできます。`,
-      type: "NearMiss"
-    });
-  }
-
-  for (const session of results.session) {
-    if (session.nearMiss > 0 && session.trades === 0) {
-      suggestions.push({
-        engine: `${session.session} Session`,
-        theme: "時間帯研究",
-        stars: stars(session.nearMiss >= 20 ? 4 : 3),
-        score: session.nearMiss >= 20 ? 4 : 3,
-        reason: `${session.session}はNearMiss ${fmt(session.nearMiss)}件ですがTradeが少ないため、時間帯別の条件成立率を確認する価値があります。`,
-        type: "Session"
-      });
-    }
-  }
-
-  return suggestions.sort((a, b) => b.score - a.score).slice(0, 8);
-}
-
-function buildCsvManager(files) {
-  return CSV_TYPES.map((type) => {
-    const loaded = files.find((f) => f.type.key === type.key || (type.key === "engineActivity" && f.type.key === "engineActivityV2"));
-    return {
-      file: type.label,
-      exists: Boolean(loaded),
-      rows: loaded?.rows.length || 0,
-      columns: loaded?.headers.length || 0,
-      updated: loaded?.updated ? loaded.updated.toLocaleString("ja-JP") : "-",
-      version: loaded?.type.version || type.version,
-      description: type.description,
-      usage: type.usage
-    };
-  });
-}
-
 function renderAll() {
-  updateStatus();
+  renderStatus();
   renderDashboard();
-  renderTradeAnalysis();
-  renderEngineAnalysis();
+  renderTrade();
+  renderEngine();
   renderNearMiss();
   renderSession();
   renderSignal();
-  renderSuggestions();
-  renderCsvManager();
+  renderManager();
+  renderIntelligence();
+  renderTimeline();
 }
 
-function updateStatus() {
+function renderStatus() {
   const loaded = engine.files.size;
-  const dot = document.getElementById("statusDot");
-  dot.classList.toggle("ready", loaded > 0);
-  document.getElementById("statusTitle").textContent = loaded ? `${loaded} CSV loaded` : "CSV未読込";
-  document.getElementById("statusText").textContent = loaded ? "解析結果を更新しました。" : "EAが出力したCSVを読み込んでください。";
+  document.getElementById("statusDot").classList.toggle("ready", loaded > 0);
+  document.getElementById("statusTitle").textContent = loaded ? `${loaded} CSV読込済み` : "CSV未読込";
+  document.getElementById("statusText").textContent = loaded ? "Research Intelligenceを更新しました。" : "EAが出力したCSVを読み込んでください。";
 }
 
 function renderDashboard() {
   const d = engine.results.dashboard;
-  const hasTrade = engine.results.trades.length > 0;
-  document.getElementById("healthCard").innerHTML = renderHealthCard();
-  document.getElementById("dashboardMetrics").innerHTML = [
-    metric("総トレード数", fmt(d.total || 0)),
-    metric("勝率", `${fmtPct(d.winRate || 0)}%`),
-    metric("ProfitFactor", formatPf(d.profitFactor || 0)),
-    metric("総利益", money(d.totalProfit || 0)),
-    metric("期待値", `${numText(d.expectancy || 0)} pips`),
-    metric("最大DD", money(d.maxDD || 0)),
-    metric("平均利益", money(d.avgWin || 0)),
-    metric("平均損失", money(d.avgLoss || 0))
-  ].join("");
-
-  document.getElementById("engineProfitRanking").innerHTML = table(
-    ["Engine", "Trades", "WinRate", "Profit", "Avg", "Hold"],
-    engine.results.tradeByEngine.map((r) => [r.name, r.trades, `${fmtPct(r.winRate)}%`, money(r.profit), money(r.avgProfit), `${numText(r.avgHolding)}m`]),
-    "TradeHistory.csvを読み込むと表示されます。"
-  );
-
-  const sessionPerf = groupTradePerformance(engine.results.trades, "session");
-  const weekdayPerf = groupTradePerformance(engine.results.trades.map((t) => ({ ...t, weekday: weekdayName(t.datetime) })), "weekday");
-  document.getElementById("timeWeekSummary").innerHTML = table(
-    ["Type", "Name", "Trades", "WinRate", "Profit"],
-    [
-      ...sessionPerf.map((r) => ["Session", r.name, r.trades, `${fmtPct(r.winRate)}%`, money(r.profit)]),
-      ...weekdayPerf.map((r) => ["Weekday", r.name, r.trades, `${fmtPct(r.winRate)}%`, money(r.profit)])
-    ],
-    "TradeHistory.csvを読み込むと表示されます。"
-  );
-
-  drawLine("equityChart", hasTrade ? cumulativeSeries(engine.results.trades) : [], "Cumulative");
-  drawBar("engineProfitChart", engine.results.tradeByEngine.map((r) => r.name), engine.results.tradeByEngine.map((r) => r.profit), "Profit");
+  setHtml("dashboardMetrics", metrics([
+    ["総トレード数", fmt(d.totalTrades)],
+    ["勝率", pct(d.winRate)],
+    ["ProfitFactor", pf(d.profitFactor)],
+    ["総利益", moneyOrNum(d.totalProfit)],
+    ["期待値", `${round(d.expectancy)} pips`],
+    ["最大DD", `${round(d.maxDD)} pips`],
+    ["平均利益", `${round(d.averageWin)} pips`],
+    ["平均損失", `${round(d.averageLoss)} pips`]
+  ]));
+  renderTodaysResearch();
+  drawLine("equityChart", cumulativeSeries(engine.results.trades), "Cumulative Pips");
+  drawBar("engineProfitChart", engine.results.tradeByEngine.map((x) => x.name), engine.results.tradeByEngine.map((x) => round(x.pips)), "Pips");
+  setHtml("engineProfitRanking", table(["Engine", "Trades", "WinRate", "Pips", "Avg"], engine.results.tradeByEngine.slice(0, 10).map((x) => [x.name, x.trades, pct(x.winRate), round(x.pips), round(x.averagePips)])));
+  setHtml("timeWeekSummary", timeWeekSummary());
 }
 
-function renderTradeAnalysis() {
-  const rows = engine.results.tradeByEngine;
-  document.getElementById("tradeTable").innerHTML = table(
-    ["Engine", "Trades", "Win", "Lose", "WinRate", "Profit", "AvgWin", "AvgLoss", "AvgHold", "WinStreak", "LoseStreak"],
-    rows.map((r) => [r.name, r.trades, r.wins, r.losses, `${fmtPct(r.winRate)}%`, money(r.profit), money(r.avgWin), money(r.avgLoss), `${numText(r.avgHolding)}m`, r.streak.maxWin, r.streak.maxLoss]),
-    "TradeHistory.csvを読み込むと表示されます。"
-  );
-  drawBar("tradeEngineChart", rows.map((r) => r.name), rows.map((r) => r.winRate), "WinRate %");
-  const weekdays = groupTradePerformance(engine.results.trades.map((t) => ({ ...t, weekday: weekdayName(t.datetime) })), "weekday");
-  drawBar("weekdayChart", weekdays.map((r) => r.name), weekdays.map((r) => r.winRate), "Weekday WinRate %");
+function renderTodaysResearch() {
+  const top = engine.results.intelligence.slice(0, 3);
+  if (!top.length) {
+    setHtml("todaysResearch", `<div class="empty">CSVを読み込むと、今日のResearch候補を表示します。</div>`);
+    return;
+  }
+  setHtml("todaysResearch", top.map((x, i) => `
+    <div class="research-item">
+      <span>${i + 1}位 ${x.stars}</span>
+      <strong>${escapeHtml(x.title)}</strong>
+      <p>${escapeHtml(x.target)} / ${escapeHtml(x.reason)}</p>
+    </div>
+  `).join(""));
 }
 
-function renderEngineAnalysis() {
-  const rows = engine.results.engineActivity;
-  document.getElementById("engineCards").innerHTML = rows.length ? rows.map((r) => `
+function renderTrade() {
+  drawBar("tradeEngineChart", engine.results.tradeByEngine.map((x) => x.name), engine.results.tradeByEngine.map((x) => round(x.winRate)), "WinRate %");
+  const weekdays = groupTradeByWeekday(engine.results.trades);
+  drawBar("weekdayChart", weekdays.map((x) => x.name), weekdays.map((x) => round(x.winRate)), "Weekday WinRate %");
+  setHtml("tradeTable", table(["Engine", "Trades", "WinRate", "Pips", "Avg", "Avg Hold", "WinStreak", "LossStreak"], engine.results.tradeByEngine.map((x) => [x.name, x.trades, pct(x.winRate), round(x.pips), round(x.averagePips), `${round(x.averageHolding)}分`, x.streakWin, x.streakLoss])));
+}
+
+function renderEngine() {
+  const cards = engine.results.engineActivity.map((e) => `
     <div class="engine-card">
-      <h4>${escapeHtml(r.engine)}</h4>
-      <div class="mini-stats">
-        <div><span>Checks</span><strong>${fmt(r.checks)}</strong></div>
-        <div><span>TimeOK</span><strong>${fmt(r.timeOk)}</strong></div>
-        <div><span>Full</span><strong>${fmt(r.full)}</strong></div>
-        <div><span>Entries</span><strong>${fmt(r.entries)}</strong></div>
-        <div><span>EntryRate</span><strong>${fmtPct(r.entryRate)}%</strong></div>
-        <div><span>TopNG</span><strong>${escapeHtml(r.topNg.map(([n]) => n).join(" / ") || "-")}</strong></div>
+      <h4>${escapeHtml(e.engine)}</h4>
+      <span class="health ${healthClass(e.health)}">${escapeHtml(e.health)}</span>
+      <div class="kv">
+        <span>Checks</span><strong>${fmt(e.checks)}</strong>
+        <span>TimeOK</span><strong>${fmt(e.timeOk)}</strong>
+        <span>Full</span><strong>${fmt(e.full)}</strong>
+        <span>Entries</span><strong>${fmt(e.entries)}</strong>
+        <span>EntryRate</span><strong>${pct(e.entryRate)}</strong>
+        <span>Research</span><strong>${e.researchScore}</strong>
+        <span>TopNG</span><strong>${escapeHtml(e.topNg.map((x) => x.name).join(" / ") || "-")}</strong>
       </div>
     </div>
-  `).join("") : empty("EngineActivity.csv または EngineActivity_v2.csvを読み込むと表示されます。");
-
-  const ngRows = [];
-  for (const r of rows) {
-    for (const [reason, count] of r.topNg) ngRows.push([r.engine, reason, count]);
-  }
-  document.getElementById("topNgTable").innerHTML = table(["Engine", "NG Reason", "Count"], ngRows, "TopNGデータがありません。");
+  `).join("");
+  setHtml("engineCards", cards || `<div class="empty">EngineActivity CSVを読み込んでください。</div>`);
+  setHtml("topNgTable", topNgTable());
+  const radarTarget = engine.results.engineActivity[0];
+  drawRadar("engineRadarChart", radarTarget);
 }
 
 function renderNearMiss() {
   const n = engine.results.nearMiss;
-  document.getElementById("closestEngine").innerHTML = n.closest ? `
-    <div class="metric"><span>Engine</span><strong>${escapeHtml(n.closest.engine)}</strong></div>
-    <div class="metric"><span>NearMiss</span><strong>${fmt(n.closest.count)}</strong></div>
-    <p>このEngineはFullSignal直前まで来ている候補が最も多いです。条件変更ではなく、まずResearch候補として扱います。</p>
-  ` : empty("NearMissHistory.csvを読み込むと表示されます。");
-  document.getElementById("nearMissTable").innerHTML = table(
-    ["NG Reason", "Count"],
-    (n.reasonRanking || []).map((r) => [r.reason, r.count]),
-    "NearMissデータがありません。"
-  );
-  drawBar("nearMissChart", ["あと1条件", "あと2条件"], [n.ng1 || 0, n.ng2 || 0], "NearMiss");
+  drawPie("nearMissChart", ["あと1条件", "あと2条件", "あと3条件以上"], [n.buckets?.one || 0, n.buckets?.two || 0, n.buckets?.threePlus || 0], "NearMiss");
+  setHtml("closestEngine", n.closestEngine ? `<div class="metric"><span>一番惜しいEngine</span><strong>${escapeHtml(n.closestEngine.engine)}</strong><p>${fmt(n.closestEngine.count)}件</p></div>` : `<div class="empty">NearMissHistory CSVを読み込んでください。</div>`);
+  setHtml("nearMissComboTable", table(["NG組み合わせ", "Count"], (n.combos || []).slice(0, 15).map((x) => [x.name, x.count])));
+  setHtml("nearMissTable", table(["NG条件", "Count"], (n.ngReasons || []).slice(0, 15).map((x) => [x.name, x.count])));
 }
 
 function renderSession() {
-  const rows = engine.results.session;
-  document.getElementById("sessionTable").innerHTML = table(
-    ["Session", "Bars", "Trades", "WinRate", "Profit", "NearMiss", "RSI%", "BB%", "ATR%", "Vol%"],
-    rows.map((r) => [r.session, fmt(r.bars), fmt(r.trades), `${fmtPct(r.winRate)}%`, money(r.profit), fmt(r.nearMiss), `${fmtPct(r.rsiRate)}%`, `${fmtPct(r.bbRate)}%`, `${fmtPct(r.atrRate)}%`, `${fmtPct(r.volRate)}%`]),
-    "SessionResearch.csvを読み込むと表示されます。"
-  );
-  drawBar("sessionChart", rows.map((r) => r.session), rows.map((r) => r.nearMiss), "NearMiss");
-  drawMultiBar("sessionConditionChart", rows.map((r) => r.session), [
-    { label: "RSI", data: rows.map((r) => r.rsiRate) },
-    { label: "BB", data: rows.map((r) => r.bbRate) },
-    { label: "ATR", data: rows.map((r) => r.atrRate) },
-    { label: "Vol", data: rows.map((r) => r.volRate) }
-  ]);
+  const s = engine.results.session;
+  drawBar("sessionChart", s.map((x) => x.session), s.map((x) => x.nearMiss), "NearMiss");
+  drawBar("sessionConditionChart", s.map((x) => x.session), s.map((x) => round(x.winRate)), "WinRate %");
+  setHtml("sessionTable", table(["Session", "Trades", "NearMiss", "WinRate", "AvgPips", "TopNG", "Research"], s.map((x) => [x.session, x.trades, x.nearMiss, pct(x.winRate), round(x.averagePips), x.topNg.map((n) => n.name).join(" / "), x.researchScore])));
 }
 
 function renderSignal() {
   const s = engine.results.signal;
-  document.getElementById("signalSummary").innerHTML = `
-    ${metric("Signal数", fmt(s.total || 0))}
-    ${metric("FullSignal", fmt(s.full || 0))}
-  `;
-  document.getElementById("signalTable").innerHTML = table(
-    ["Engine", "Signals", "Full", "Entries", "EntryRate"],
-    (s.byEngine || []).map((r) => [r.engine, fmt(r.signals), fmt(r.full), fmt(r.entries), `${fmtPct(r.entryRate)}%`]),
-    "signal_logを読み込むと表示されます。"
-  );
-  drawBar("signalChart", (s.byEngine || []).map((r) => r.engine), (s.byEngine || []).map((r) => r.signals), "Signals");
+  drawBar("signalChart", (s.table || []).map((x) => x.engine), (s.table || []).map((x) => x.signals), "Signals");
+  setHtml("signalSummary", metrics([["Signal数", fmt(s.totalSignals || 0)], ["Engine数", fmt((s.table || []).length)], ["Entry成功率", pct(avgSignalSuccess(s.table || []))]]));
+  setHtml("signalTable", table(["Engine", "Signals", "Entries", "SuccessRate"], (s.table || []).map((x) => [x.engine, x.signals, x.entries, pct(x.successRate)])));
 }
 
-function renderSuggestions() {
-  const rows = engine.results.suggestions;
-  document.getElementById("suggestionList").innerHTML = rows.length ? rows.map((s, i) => `
-    <article class="suggestion">
-      <span class="stars">${s.stars}</span>
-      <h3>${i + 1}. ${escapeHtml(s.engine)} / ${escapeHtml(s.theme)}</h3>
-      <p>${escapeHtml(s.reason)}</p>
-      <span class="pill">${escapeHtml(s.type)}</span>
-    </article>
-  `).join("") : empty("EngineActivity / NearMiss / SessionResearchを読み込むとResearch候補を表示します。");
+function renderManager() {
+  setHtml("csvManagerTable", table(["CSV", "存在", "件数", "列数", "更新日時", "Version"], engine.results.csvManager.map((x) => [x.label, x.exists ? "Yes" : "No", x.rows, x.columns, x.updated ? x.updated.toLocaleString() : "-", x.version])));
+  setHtml("csvSpecTable", table(["CSV", "用途", "使用画面"], CSV_TYPES.map((x) => [x.label, x.description, x.usage])));
+}
+
+function renderIntelligence() {
+  const top = engine.results.intelligence[0];
+  setHtml("intelligenceHero", top ? `
+    <span class="pill">Today's AI Recommendation</span>
+    <h3>${top.stars} ${escapeHtml(top.title)}</h3>
+    <p><strong>${escapeHtml(top.target)}</strong> - ${escapeHtml(top.reason)}</p>
+  ` : `
+    <span class="pill">Research Intelligence</span>
+    <h3>CSVを読み込むとResearch候補を自動生成します。</h3>
+    <p>Analyzerは条件を変更しません。どこを研究すべきかを可視化します。</p>
+  `);
+  setHtml("researchSuggestions", engine.results.intelligence.map((s) => `
+    <div class="suggestion">
+      <div class="stars">${s.stars}</div>
+      <div>
+        <h4>${escapeHtml(s.title)}</h4>
+        <p><span class="tag">${escapeHtml(s.target)}</span></p>
+        <p>${escapeHtml(s.reason)}</p>
+      </div>
+    </div>
+  `).join("") || `<div class="empty">Research候補はまだありません。</div>`);
   document.getElementById("chatgptPrompt").value = engine.getPrompt();
 }
 
-function renderCsvManager() {
-  const rows = engine.results.csvManager;
-  document.getElementById("csvManagerTable").innerHTML = table(
-    ["CSV", "存在", "件数", "列数", "更新日時", "対応Version"],
-    rows.map((r) => [r.file, r.exists ? "Yes" : "No", fmt(r.rows), fmt(r.columns), r.updated, r.version]),
-    "CSV情報がありません。"
-  );
-  document.getElementById("csvSpecTable").innerHTML = table(
-    ["CSV", "説明", "使用画面"],
-    CSV_TYPES.map((r) => [r.label, r.description, r.usage]),
-    ""
-  );
+function renderTimeline() {
+  const history = loadResearchHistory();
+  const labels = history.map((x) => new Date(x.datetime).toLocaleString());
+  drawMultiLine("timelineChart", labels, [
+    { label: "Trades", data: history.map((x) => x.trades) },
+    { label: "NearMiss", data: history.map((x) => x.nearMiss) },
+    { label: "WinRate", data: history.map((x) => round(x.winRate)) },
+    { label: "PF", data: history.map((x) => round(x.profitFactor)) }
+  ]);
+  setHtml("engineEvolution", engineEvolution(history));
 }
 
-function renderHealthCard() {
-  const loaded = engine.files.size;
-  const d = engine.results.dashboard;
-  const suggestions = engine.results.suggestions;
-  if (!loaded) {
-    return `<span class="pill">Research Status</span><h3>CSVを読み込むと、EAの健康状態を自動評価します。</h3><p>複数CSVをまとめて読み込めます。存在しないCSVは自動スキップします。</p>`;
-  }
-  const status = d.total >= 30 ? "Research Ready" : d.total > 0 ? "Collect More Data" : "Runtime Diagnostics";
-  const top = suggestions[0];
-  return `<span class="pill">${status}</span><h3>${top ? `${escapeHtml(top.engine)} を次回Research候補として優先` : "CSV解析が完了しました"}</h3><p>${top ? escapeHtml(top.reason) : "TradeHistoryが少ない場合はEngineActivityとNearMissを中心に観察してください。"}</p>`;
+function metrics(items) {
+  return items.map(([label, value]) => `<div class="metric"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`).join("");
 }
 
-function metric(label, value) {
-  return `<div class="metric"><span>${escapeHtml(label)}</span><strong>${escapeHtml(String(value))}</strong></div>`;
+function table(headers, rows) {
+  if (!rows.length) return `<div class="empty">データがありません。</div>`;
+  return `<table><thead><tr>${headers.map((h) => `<th>${escapeHtml(h)}</th>`).join("")}</tr></thead><tbody>${rows.map((row) => `<tr>${row.map((v) => `<td>${escapeHtml(v)}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
 }
 
-function table(headers, rows, emptyText) {
-  if (!rows || !rows.length) return empty(emptyText);
-  return `<div class="table-wrap"><table><thead><tr>${headers.map((h) => `<th>${escapeHtml(h)}</th>`).join("")}</tr></thead><tbody>${rows.map((row) => `<tr>${row.map((cell) => `<td>${escapeHtml(String(cell ?? "-"))}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+function topNgTable() {
+  const rows = [];
+  engine.results.engineActivity.forEach((e) => e.topNg.forEach((ng) => rows.push([e.engine, ng.name, ng.count])));
+  rows.sort((a, b) => b[2] - a[2]);
+  return table(["Engine", "TopNG", "Count"], rows.slice(0, 20));
 }
 
-function empty(text) {
-  return `<div class="empty">${escapeHtml(text || "データがありません。")}</div>`;
+function timeWeekSummary() {
+  const bySession = groupSimple(engine.results.trades, "session");
+  const weekdays = groupTradeByWeekday(engine.results.trades);
+  return `
+    <h4>Session</h4>
+    ${table(["Session", "Trades", "WinRate", "AvgPips"], Object.entries(bySession).map(([k, list]) => [k, list.length, pct(ratio(list.filter((x) => x.pips > 0).length, list.length)), round(avg(list, "pips"))]))}
+    <h4>Weekday</h4>
+    ${table(["Weekday", "Trades", "WinRate"], weekdays.map((x) => [x.name, x.trades, pct(x.winRate)]))}
+  `;
 }
 
-function drawLine(id, values, label) {
-  const labels = values.map((_, i) => i + 1);
-  chart(id, "line", labels, [{ label, data: values }]);
-}
-
-function drawBar(id, labels, values, label) {
-  chart(id, "bar", labels, [{ label, data: values }]);
-}
-
-function drawMultiBar(id, labels, datasets) {
-  chart(id, "bar", labels, datasets);
-}
-
-function chart(id, type, labels, datasets) {
-  const canvas = document.getElementById(id);
-  if (!canvas || typeof Chart === "undefined") return;
-  if (charts[id]) charts[id].destroy();
-  charts[id] = new Chart(canvas, {
-    type,
-    data: {
-      labels,
-      datasets: datasets.map((d, i) => ({
-        label: d.label,
-        data: d.data,
-        borderColor: ["#49a9ff", "#48d597", "#f0a33a", "#ff6b77"][i % 4],
-        backgroundColor: ["rgba(73,169,255,.35)", "rgba(72,213,151,.35)", "rgba(240,163,58,.35)", "rgba(255,107,119,.35)"][i % 4],
-        tension: .28
-      }))
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: { legend: { labels: { color: "#9db5cc" } } },
-      scales: {
-        x: { ticks: { color: "#9db5cc" }, grid: { color: "rgba(35,64,93,.45)" } },
-        y: { ticks: { color: "#9db5cc" }, grid: { color: "rgba(35,64,93,.45)" } }
-      }
-    }
+function groupTradeByWeekday(trades) {
+  const names = ["日", "月", "火", "水", "木", "金", "土"];
+  const groups = {};
+  trades.forEach((t) => {
+    const key = t.datetime ? names[t.datetime.getDay()] : "Unknown";
+    (groups[key] ||= []).push(t);
   });
+  return Object.entries(groups).map(([name, list]) => ({ name, trades: list.length, winRate: ratio(list.filter((x) => x.pips > 0).length, list.length) }));
 }
 
-function getAny(row, names) {
-  for (const name of names) {
-    if (row[name] !== undefined && row[name] !== "") return row[name];
-    const found = Object.keys(row).find((k) => k.toLowerCase() === name.toLowerCase());
-    if (found && row[found] !== "") return row[found];
-  }
-  return "";
-}
-
-function num(value) {
-  if (value === null || value === undefined || value === "") return 0;
-  const n = Number(String(value).replace(/[,%円pips分]/g, ""));
-  return Number.isFinite(n) ? n : 0;
-}
-
-function sum(items, key) {
-  return items.reduce((acc, item) => acc + num(item[key]), 0);
-}
-
-function avg(items, key) {
-  return items.length ? sum(items, key) / items.length : 0;
-}
-
-function sumCol(items, key) {
-  return items.reduce((acc, row) => acc + num(getAny(row, [key])), 0);
-}
-
-function pct(part, total) {
-  return total ? part * 100 / total : 0;
-}
-
-function fmt(value) {
-  return Number(value || 0).toLocaleString("ja-JP", { maximumFractionDigits: 0 });
-}
-
-function fmtPct(value) {
-  return Number(value || 0).toLocaleString("ja-JP", { maximumFractionDigits: 1 });
-}
-
-function numText(value) {
-  return Number(value || 0).toLocaleString("ja-JP", { maximumFractionDigits: 2 });
-}
-
-function money(value) {
-  return Number(value || 0).toLocaleString("ja-JP", { maximumFractionDigits: 2 });
-}
-
-function formatPf(value) {
-  if (value === Infinity) return "∞";
-  return numText(value);
-}
-
-function groupBy(items, fn) {
-  return items.reduce((acc, item) => {
-    const key = fn(item) || "-";
-    if (!acc[key]) acc[key] = [];
-    acc[key].push(item);
+function groupSimple(list, key) {
+  return list.reduce((acc, item) => {
+    const k = item[key] || "Unknown";
+    (acc[k] ||= []).push(item);
     return acc;
   }, {});
 }
 
-function normalizeEngine(value) {
-  const v = String(value || "-").trim();
-  const lower = v.toLowerCase().replace(/\s+/g, "");
-  if (lower.includes("expansion")) return "Core E Expansion A";
-  if (lower.includes("corerulee") || lower === "coreengine" || lower === "core") return "Core Rule E";
-  if (lower.includes("candidateg")) return "Candidate G";
-  if (lower.includes("morningprime") || lower === "morning") return "Morning Prime";
-  if (lower.includes("dayrulea") || lower === "daya") return "Day Rule A";
-  if (lower.includes("eveningrulec")) return "Evening Rule C";
-  if (lower.includes("honmei17")) return "Honmei17";
-  return v || "-";
-}
-
-function parseDateTime(date, time) {
-  const text = `${date || ""} ${time || ""}`.trim().replace(/\./g, "-").replace(/\//g, "-");
-  const d = new Date(text);
-  return Number.isNaN(d.getTime()) ? null : d;
-}
-
-function weekdayName(date) {
-  if (!date) return "-";
-  return ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][date.getDay()];
-}
-
-function sessionFromTime(time) {
-  const hour = Number(String(time || "").slice(0, 2));
-  if (!Number.isFinite(hour)) return "Other";
-  if (hour >= 9 && hour < 15) return "Tokyo";
-  if (hour >= 15 && hour < 21) return "London";
-  if (hour >= 21 || hour < 2) return "NY";
-  return "Other";
-}
-
-function spreadClass(spread) {
-  if (spread < 1) return "0-1";
-  if (spread < 2) return "1-2";
-  if (spread < 3) return "2-3";
-  return "3+";
-}
-
-function holdingClass(minutes) {
-  if (minutes < 5) return "<5";
-  if (minutes < 15) return "5-15";
-  if (minutes < 30) return "15-30";
-  if (minutes < 60) return "30-60";
-  return "60+";
-}
-
-function streaks(items) {
-  let maxWin = 0, maxLoss = 0, currentWin = 0, currentLoss = 0;
-  for (const item of items) {
-    if (item.value > 0) {
-      currentWin++;
-      currentLoss = 0;
-    } else if (item.value < 0) {
-      currentLoss++;
-      currentWin = 0;
-    } else {
-      currentWin = 0;
-      currentLoss = 0;
-    }
-    maxWin = Math.max(maxWin, currentWin);
-    maxLoss = Math.max(maxLoss, currentLoss);
-  }
-  return { maxWin, maxLoss };
-}
-
-function maxDrawdown(values) {
-  let peak = 0;
-  let equity = 0;
-  let dd = 0;
-  for (const value of values) {
-    equity += num(value);
-    peak = Math.max(peak, equity);
-    dd = Math.max(dd, peak - equity);
-  }
-  return dd;
-}
-
 function cumulativeSeries(trades) {
   let total = 0;
-  return trades.map((t) => {
-    total += num(t.value);
-    return Number(total.toFixed(2));
-  });
+  return trades.map((t, i) => ({ x: i + 1, y: round(total += t.pips) }));
 }
 
-function latestSnapshots(rows, keys) {
-  const map = new Map();
-  rows.forEach((row, index) => {
-    const key = keys.map((k) => normalizeEngine(getAny(row, [k])) || getAny(row, [k])).join("|");
-    map.set(key, { ...row, __index: index });
-  });
-  return Array.from(map.values());
+function avgSignalSuccess(tableRows) {
+  return tableRows.length ? tableRows.reduce((acc, x) => acc + x.successRate, 0) / tableRows.length : 0;
 }
 
-function addTopNg(obj, reason, count) {
-  if (!reason || reason === "-" || !count) return;
-  obj[reason] = (obj[reason] || 0) + count;
+function engineEvolution(history) {
+  if (history.length < 2) return `<div class="empty">履歴が2回以上あると前回との差分を表示します。</div>`;
+  const prev = history[history.length - 2];
+  const cur = history[history.length - 1];
+  return table(["項目", "差分"], [
+    ["Trade", signed(cur.trades - prev.trades)],
+    ["NearMiss", signed(cur.nearMiss - prev.nearMiss)],
+    ["WinRate", `${signed(round(cur.winRate - prev.winRate))}%`],
+    ["ProfitFactor", signed(round(cur.profitFactor - prev.profitFactor))]
+  ]);
 }
 
-function splitReasons(value) {
-  return String(value || "")
-    .split(/[;|/、\s]+/)
-    .map((v) => v.trim())
-    .filter(Boolean);
+function drawLine(id, points, label) {
+  makeChart(id, { type: "line", data: { labels: points.map((p) => p.x), datasets: [{ label, data: points.map((p) => p.y), borderColor: "#49a9ff", backgroundColor: "rgba(73,169,255,.18)", tension: .28, fill: true }] } });
 }
 
-function asBool(value) {
-  const v = String(value || "").toLowerCase();
-  return v === "true" || v === "1" || v === "yes" || v === "ok";
+function drawMultiLine(id, labels, series) {
+  const colors = ["#49a9ff", "#48d597", "#f0a33a", "#a78bfa"];
+  makeChart(id, { type: "line", data: { labels, datasets: series.map((s, i) => ({ label: s.label, data: s.data, borderColor: colors[i % colors.length], backgroundColor: "transparent", tension: .25 })) } });
 }
 
-function scoreResearchCandidate(timeOk, full, entries, topNgCount) {
-  let score = 1;
-  if (timeOk >= 50) score++;
-  if (timeOk >= 150) score++;
-  if (full === 0 && topNgCount >= 30) score++;
-  if (entries === 0 && timeOk >= 100) score++;
-  if (full > 0 || entries > 0) score = Math.max(score, 3);
-  return Math.min(5, score);
+function drawBar(id, labels, data, label) {
+  makeChart(id, { type: "bar", data: { labels, datasets: [{ label, data, backgroundColor: "rgba(73,169,255,.55)", borderColor: "#49a9ff", borderWidth: 1 }] } });
 }
 
-function stars(score) {
-  const filled = Math.max(1, Math.min(5, Math.round(score)));
-  return "★".repeat(filled) + "☆".repeat(5 - filled);
+function drawPie(id, labels, data, label) {
+  makeChart(id, { type: "doughnut", data: { labels, datasets: [{ label, data, backgroundColor: ["#48d597", "#f0a33a", "#ff6b77"] }] } });
 }
+
+function drawRadar(id, e) {
+  const data = e ? [Math.min(e.entries, 100), Math.min(e.full, 100), Math.min(e.timeOk, 100), Math.min(e.entryRate, 100), e.score * 20, e.topNg.length ? 60 : 20] : [0, 0, 0, 0, 0, 0];
+  makeChart(id, { type: "radar", data: { labels: ["Trade", "Full", "NearMiss", "EntryRate", "Health", "ResearchScore"], datasets: [{ label: e?.engine || "Engine", data, borderColor: "#39d8ff", backgroundColor: "rgba(57,216,255,.18)" }] } });
+}
+
+function makeChart(id, config) {
+  const canvas = document.getElementById(id);
+  if (!canvas || !window.Chart) return;
+  if (charts[id]) charts[id].destroy();
+  charts[id] = new Chart(canvas, { ...config, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: "#cce8ff" } } }, scales: config.type === "doughnut" || config.type === "radar" ? {} : { x: { ticks: { color: "#9db5cc" }, grid: { color: "rgba(157,181,204,.14)" } }, y: { ticks: { color: "#9db5cc" }, grid: { color: "rgba(157,181,204,.14)" } } } } });
+}
+
+function setHtml(id, html) {
+  const el = document.getElementById(id);
+  if (el) el.innerHTML = html;
+}
+
+function fmt(value) { return Number(value || 0).toLocaleString(); }
+function pct(value) { return `${round(value)}%`; }
+function pf(value) { return value >= 999 ? "∞" : String(round(value)); }
+function moneyOrNum(value) { return round(value) ? round(value).toLocaleString() : "0"; }
+function signed(value) { return value > 0 ? `+${value}` : String(value); }
+function healthClass(value) { return value === "Needs Research" ? "Needs" : value || "Inactive"; }
 
 function escapeHtml(value) {
-  return String(value)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
+  return String(value ?? "").replace(/[&<>"']/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" }[m]));
+}
+
+function downloadHistory() {
+  const blob = new Blob([JSON.stringify(loadResearchHistory(), null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "ResearchHistory.json";
+  a.click();
+  URL.revokeObjectURL(url);
 }
