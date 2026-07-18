@@ -74,6 +74,7 @@
           <p>This tool never rewrites the EA or CSV. It only turns exported CSV data into Research candidates.</p>
         </div>
         <div id="labDashboard" class="research-strip"></div>
+        <div id="analysisWarnings" class="card"></div>
         <div id="progressPanel" class="card"></div>
         <div class="metric-grid" id="dashboardMetrics"></div>
         <div class="grid two">
@@ -97,11 +98,14 @@
 
       <section class="tab-panel" id="engine">
         <div class="section-head"><h3>Engine Medical Chart</h3><p>Engine health, Research Score, TimeOK, EntryRate, and TopNG.</p></div>
+        <div class="filter-row"><label>Engine Filter <select id="engineFilter"></select></label></div>
         <div id="engineCards" class="engine-card-grid"></div>
         <div class="grid two">
           <article class="card"><h3>Engine Radar</h3><canvas id="engineRadarChart"></canvas></article>
           <article class="card"><h3>TopNG Ranking</h3><div id="topNgTable"></div></article>
         </div>
+        <article class="card"><h3>NearMiss Deep Analysis</h3><div id="nearMissDeepTable"></div></article>
+        <article class="card"><h3>Single Bottleneck Research</h3><div id="singleBottleneckTable"></div></article>
       </section>
 
       <section class="tab-panel" id="condition">
@@ -122,6 +126,7 @@
           <article class="card"><canvas id="sessionConditionChart"></canvas></article>
         </div>
         <article class="card"><h3>Session Table</h3><div id="sessionTable"></div></article>
+        <article class="card"><h3>Session Condition Matrix</h3><div id="sessionConditionMatrix"></div></article>
       </section>
 
       <section class="tab-panel" id="nearmiss">
@@ -143,6 +148,10 @@
           <article class="card"><canvas id="weekdayChart"></canvas></article>
         </div>
         <article class="card"><h3>Trade by Engine</h3><div id="tradeTable"></div></article>
+        <div class="grid two">
+          <article class="card"><h3>Holding Analysis</h3><div id="holdingTable"></div></article>
+          <article class="card"><h3>Spread Analysis</h3><div id="spreadTable"></div></article>
+        </div>
       </section>
 
       <section class="tab-panel" id="signal">

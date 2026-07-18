@@ -1,5 +1,41 @@
 # CHANGELOG
 
+## v3.1 Stabilization & Deep Research Edition
+
+### Added
+
+- CSV validation status and warnings
+- Duplicate CSV replacement notice
+- Dataset fingerprint for duplicate ResearchHistory prevention
+- Research Score 3.0 breakdown
+- Confidence display
+- NearMiss Deep Analysis
+- Single Bottleneck Research
+- Condition State Pattern ranking
+- Holding Analysis
+- Spread Analysis
+- Session Condition Matrix
+- Engine filter UI
+- Analysis Warnings panel
+- Extended Markdown report sections
+- `RESEARCH_SCORE_SPECIFICATION.md`
+- Test CSV files under `tests/`
+
+### Improved
+
+- DOM event binding is now guarded against missing elements
+- Analyzer continues even when one CSV has warnings
+- Research report includes dataset summary and validation results
+- ResearchHistory stores dataset range, CSV types, validation warnings, engine health, condition rank and session rank
+- Engine Medical Chart now shows Score Detail and Confidence
+
+### Not Changed
+
+- No EA code changes
+- No CSV rewriting
+- No trading-condition changes
+- No external AI API calls
+
 ## v3.0 AI Research Lab Edition
 
 ### Added

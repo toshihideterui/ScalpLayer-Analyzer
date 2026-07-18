@@ -5,9 +5,22 @@ document.addEventListener("DOMContentLoaded", () => {
   setupTabs();
   setupFileInput();
   setupButtons();
-  document.getElementById("researchMemo").value = loadMemo();
+  if (byId("researchMemo")) byId("researchMemo").value = loadMemo();
   renderAll();
 });
+
+function byId(id) {
+  return document.getElementById(id);
+}
+
+function on(id, event, handler) {
+  const el = byId(id);
+  if (!el) {
+    console.warn(`Missing UI element: ${id}`);
+    return;
+  }
+  el.addEventListener(event, handler);
+}
 
 function setupTabs() {
   document.querySelectorAll(".tab").forEach((button) => {
@@ -15,16 +28,16 @@ function setupTabs() {
       document.querySelectorAll(".tab").forEach((b) => b.classList.remove("active"));
       document.querySelectorAll(".tab-panel").forEach((p) => p.classList.remove("active"));
       button.classList.add("active");
-      document.getElementById(button.dataset.tab).classList.add("active");
-      document.getElementById("pageTitle").textContent = button.textContent;
+      byId(button.dataset.tab)?.classList.add("active");
+      setText("pageTitle", button.textContent);
     });
   });
 }
 
 function setupFileInput() {
-  const input = document.getElementById("csvFiles");
-  input.addEventListener("change", async (e) => loadFiles(e.target.files));
-  const zone = document.getElementById("dropZone");
+  on("csvFiles", "change", async (e) => loadFiles(e.target.files));
+  const zone = byId("dropZone");
+  if (!zone) return;
   zone.addEventListener("dragover", (e) => { e.preventDefault(); zone.classList.add("dragover"); });
   zone.addEventListener("dragleave", () => zone.classList.remove("dragover"));
   zone.addEventListener("drop", async (e) => {
@@ -35,23 +48,34 @@ function setupFileInput() {
 }
 
 function setupButtons() {
-  document.getElementById("resetButton").addEventListener("click", () => { engine.reset(); renderAll(); });
-  document.getElementById("promptButton").addEventListener("click", () => { activateTab("intelligence"); document.getElementById("chatgptPrompt").select(); });
-  document.getElementById("downloadHistoryButton").addEventListener("click", downloadHistory);
-  document.getElementById("downloadReportButton").addEventListener("click", downloadMarkdownReport);
-  document.getElementById("saveMemoButton").addEventListener("click", () => {
-    saveMemo(document.getElementById("researchMemo").value);
-    document.getElementById("memoStatus").textContent = "Saved";
-    setTimeout(() => document.getElementById("memoStatus").textContent = "", 1600);
+  on("resetButton", "click", () => { engine.reset(); renderAll(); });
+  on("promptButton", "click", () => { activateTab("intelligence"); byId("chatgptPrompt")?.select(); });
+  on("downloadHistoryButton", "click", downloadHistory);
+  on("downloadReportButton", "click", downloadMarkdownReport);
+  on("saveMemoButton", "click", () => {
+    saveMemo(byId("researchMemo")?.value || "");
+    setText("memoStatus", "Saved");
+    setTimeout(() => setText("memoStatus", ""), 1600);
+  });
+  on("engineFilter", "change", (event) => {
+    engine.results.selectedEngine = event.target.value;
+    renderEngine();
+    renderHeatmaps();
   });
 }
 
 async function loadFiles(files) {
-  await engine.loadFiles(files);
+  try {
+    await engine.loadFiles(files);
+  } catch (error) {
+    console.error("CSV load failed", error);
+  }
   renderAll();
 }
 
-function activateTab(id) { document.querySelector(`.tab[data-tab="${id}"]`)?.click(); }
+function activateTab(id) {
+  document.querySelector(`.tab[data-tab="${id}"]`)?.click();
+}
 
 function renderAll() {
   renderStatus();
@@ -71,9 +95,9 @@ function renderAll() {
 
 function renderStatus() {
   const loaded = engine.files.size;
-  document.getElementById("statusDot").classList.toggle("ready", loaded > 0);
-  document.getElementById("statusTitle").textContent = loaded ? `${loaded} CSV loaded` : "No CSV loaded";
-  document.getElementById("statusText").textContent = loaded ? "Research Lab updated." : "Load CSV files exported by the EA.";
+  byId("statusDot")?.classList.toggle("ready", loaded > 0);
+  setText("statusTitle", loaded ? `${loaded} CSV loaded` : "No CSV loaded");
+  setText("statusText", loaded ? "Research Lab updated." : "Load CSV files exported by the EA.");
 }
 
 function renderDashboard() {
@@ -87,6 +111,7 @@ function renderDashboard() {
     researchItem("Most Active Engine", mostActive, "Highest research score from activity"),
     researchItem("Current Research Target", target, engine.results.intelligence[0]?.target || "Load CSV")
   ].join(""));
+  renderWarnings();
   setHtml("progressPanel", progressHtml());
   setHtml("dashboardMetrics", metrics([
     ["Trades", fmt(d.totalTrades)],
@@ -104,10 +129,17 @@ function renderDashboard() {
   setHtml("timeWeekSummary", timeWeekSummary());
 }
 
+function renderWarnings() {
+  const warnings = [];
+  engine.results.validation.forEach((v) => (v.warnings || []).forEach((w) => warnings.push(`${v.fileName}: ${w}`)));
+  if (engine.results.comparison?.warning) warnings.push(engine.results.comparison.warning);
+  setHtml("analysisWarnings", warnings.length ? `<h3>Analysis Warnings</h3><div class="warning-list">${warnings.map((w) => `<div>${escapeHtml(w)}</div>`).join("")}</div>` : `<h3>Analysis Warnings</h3><p class="empty">No warnings.</p>`);
+}
+
 function renderLabReport() {
   setText("researchReportText", engine.results.report?.text || "Load CSV files to generate report.");
   const c = engine.results.comparison;
-  setHtml("researchComparison", c ? table(["Metric", "Diff"], [["Trade", signed(c.trades)], ["NearMiss", signed(c.nearMiss)], ["WinRate", `${signed(round(c.winRate))}%`], ["PF", signed(round(c.profitFactor))], ["Research Score", `${stars(c.previousTopResearch)} -> ${stars(c.currentTopResearch)}`]]) : `<div class="empty">No previous Analyzer run yet.</div>`);
+  setHtml("researchComparison", c ? table(["Metric", "Diff"], [["Trade", signed(c.trades)], ["NearMiss", signed(c.nearMiss)], ["WinRate", `${signed(round(c.winRate))}%`], ["PF", signed(round(c.profitFactor))], ["Research Score", `${stars(c.previousTopResearch)} -> ${stars(c.currentTopResearch)}`], ["Warning", c.warning || "-"]]) : `<div class="empty">No previous Analyzer run yet.</div>`);
   setHtml("researchProgressDetails", progressHtml(true));
 }
 
@@ -116,25 +148,40 @@ function renderTrade() {
   const weekdays = groupTradeByWeekday(engine.results.trades);
   drawBar("weekdayChart", weekdays.map((x) => x.name), weekdays.map((x) => round(x.winRate)), "Weekday WinRate %");
   setHtml("tradeTable", table(["Engine", "Trades", "WinRate", "Pips", "Avg", "Avg Hold", "WinStreak", "LossStreak"], engine.results.tradeByEngine.map((x) => [x.name, x.trades, pct(x.winRate), round(x.pips), round(x.averagePips), `${round(x.averageHolding)} min`, x.streakWin, x.streakLoss])));
+  setHtml("holdingTable", table(["Holding", "Trades", "WinRate", "AvgPips", "Status"], engine.results.holding.map((x) => [x.bucket, x.trades, pct(x.winRate), round(x.averagePips), x.status])));
+  setHtml("spreadTable", table(["Spread", "Trades", "NearMiss", "WinRate", "AvgPips", "AvgSpread"], engine.results.spread.map((x) => [x.bucket, x.trades, x.nearMiss, pct(x.winRate), round(x.averagePips), round(x.averageSpread)])));
 }
 
 function renderEngine() {
-  setHtml("engineCards", engine.results.engineActivity.map((e) => `
+  renderEngineFilter();
+  const selected = engine.results.selectedEngine || "All Engines";
+  const list = selected === "All Engines" ? engine.results.engineActivity : engine.results.engineActivity.filter((e) => e.engine === selected);
+  setHtml("engineCards", list.map((e) => `
     <div class="engine-card">
       <h4>${escapeHtml(e.engine)}</h4>
       <span class="health ${healthClass(e.health)}">${escapeHtml(e.health)}</span>
       <div class="kv">
         <span>Research Score</span><strong>${e.researchScore}</strong>
+        <span>Confidence</span><strong>${escapeHtml(e.confidence)}</strong>
         <span>Trades</span><strong>${fmt(e.trade?.trades || 0)}</strong>
         <span>NearMiss</span><strong>${fmt(engine.results.nearMiss.byEngine?.find((n) => normalizeName(n.name) === normalizeName(e.engine))?.count || 0)}</strong>
         <span>TimeOK</span><strong>${fmt(e.timeOk)}</strong>
         <span>EntryRate</span><strong>${pct(e.entryRate)}</strong>
         <span>TopNG</span><strong>${escapeHtml(e.topNg.map((x) => x.name).join(" / ") || "-")}</strong>
       </div>
+      <div class="score-breakdown">${table(["Score Detail", "Point"], e.breakdown.map((x) => [x[0], x[1]]))}</div>
     </div>
   `).join("") || `<div class="empty">Load EngineActivity CSV.</div>`);
   setHtml("topNgTable", topNgTable());
-  drawRadar("engineRadarChart", engine.results.engineActivity[0]);
+  drawRadar("engineRadarChart", list[0] || engine.results.engineActivity[0]);
+}
+
+function renderEngineFilter() {
+  const select = byId("engineFilter");
+  if (!select) return;
+  const options = ["All Engines", ...engine.results.engineActivity.map((e) => e.engine)];
+  const current = engine.results.selectedEngine || "All Engines";
+  select.innerHTML = options.map((x) => `<option value="${escapeHtml(x)}"${x === current ? " selected" : ""}>${escapeHtml(x)}</option>`).join("");
 }
 
 function renderCondition() {
@@ -142,7 +189,9 @@ function renderCondition() {
 }
 
 function renderHeatmaps() {
-  setHtml("topNgHeatmap", heatmapTable(["Engine", ...engine.results.heatmaps.ngLabels], engine.results.heatmaps.engineRows.map((r) => [r.engine, ...engine.results.heatmaps.ngLabels.map((l) => r[l] || 0)])));
+  const selected = engine.results.selectedEngine || "All Engines";
+  const engineRows = selected === "All Engines" ? engine.results.heatmaps.engineRows : engine.results.heatmaps.engineRows.filter((r) => r.engine === selected);
+  setHtml("topNgHeatmap", heatmapTable(["Engine", ...engine.results.heatmaps.ngLabels], engineRows.map((r) => [r.engine, ...engine.results.heatmaps.ngLabels.map((l) => r[l] || 0)])));
   setHtml("sessionHeatmap", heatmapTable(["Session", "Trade", "NearMiss", "WinRate", "ResearchScore"], engine.results.heatmaps.sessionRows.map((r) => [r.session, r.Trade, r.NearMiss, r.WinRate, r.ResearchScore])));
 }
 
@@ -152,6 +201,10 @@ function renderNearMiss() {
   setHtml("closestEngine", n.closestEngine ? `<div class="metric"><span>Closest Engine</span><strong>${escapeHtml(n.closestEngine.engine)}</strong><p>${fmt(n.closestEngine.count)} records</p></div>` : `<div class="empty">Load NearMissHistory CSV.</div>`);
   setHtml("nearMissComboTable", table(["NG Combo", "Count"], (n.combos || []).slice(0, 15).map((x) => [x.name, x.count])));
   setHtml("nearMissTable", table(["NG Reason", "Count"], (n.ngReasons || []).slice(0, 15).map((x) => [x.name, x.count])));
+  setHtml("nearMissDeepTable", table(["Engine", "Session", "Total", "1 Left", "2 Left", "3+ Left", "TopNG"], (engine.results.nearMissDeep.engineSession || []).slice(0, 20).map((x) => [x.engine, x.session, x.total, x.one, x.two, x.threePlus, x.topNg.map((n) => `${n.name}:${n.count}`).join(" / ")])));
+  const singles = engine.results.nearMissDeep.singleBottlenecks || [];
+  const totalSingle = singles.reduce((acc, x) => acc + x.count, 0) || 1;
+  setHtml("singleBottleneckTable", table(["Engine", "Session", "Remaining NG", "Count", "Share"], singles.slice(0, 20).map((x) => [x.engine, x.session, x.reason, x.count, pct(ratio(x.count, totalSingle))])));
 }
 
 function renderSession() {
@@ -159,6 +212,7 @@ function renderSession() {
   drawBar("sessionChart", s.map((x) => x.session), s.map((x) => x.nearMiss), "NearMiss");
   drawBar("sessionConditionChart", s.map((x) => x.session), s.map((x) => round(x.winRate)), "WinRate %");
   setHtml("sessionTable", table(["Session", "Trades", "NearMiss", "WinRate", "AvgPips", "TopNG", "Research"], s.map((x) => [x.session, x.trades, x.nearMiss, pct(x.winRate), round(x.averagePips), x.topNg.map((n) => n.name).join(" / "), x.researchScore])));
+  setHtml("sessionConditionMatrix", heatmapTable(["Session", "RSI", "ATR", "BB", "Volume", "Spread", "Time"], engine.results.sessionConditionMatrix.map((x) => [x.session, x.RSI, x.ATR, x.BB, x.Volume, x.Spread, x.Time])));
 }
 
 function renderSignal() {
@@ -169,7 +223,7 @@ function renderSignal() {
 }
 
 function renderManager() {
-  setHtml("csvManagerTable", table(["CSV", "Exists", "Rows", "Columns", "Updated", "Version"], engine.results.csvManager.map((x) => [x.label, x.exists ? "Yes" : "No", x.rows, x.columns, x.updated ? x.updated.toLocaleString() : "-", x.version])));
+  setHtml("csvManagerTable", table(["CSV", "Exists", "Rows", "Columns", "Updated", "Version", "Validation", "Warnings", "Note"], engine.results.csvManager.map((x) => [x.label, x.exists ? "Yes" : "No", x.rows, x.columns, x.updated ? x.updated.toLocaleString() : "-", x.version, x.validation, x.warnings.join(" / ") || "-", x.replaced ? "Replaced previous file" : "-"])));
   setHtml("csvSpecTable", table(["CSV", "Purpose", "Screen"], CSV_TYPES.map((x) => [x.label, x.description, x.usage])));
 }
 
@@ -177,7 +231,7 @@ function renderIntelligence() {
   const top = engine.results.intelligence[0];
   setHtml("intelligenceHero", top ? `<span class="pill">Today's AI Recommendation</span><h3>${top.stars} ${escapeHtml(top.title)}</h3><p><strong>${escapeHtml(top.target)}</strong> - ${escapeHtml(top.reason)}</p>` : `<span class="pill">Research Intelligence</span><h3>Load CSV to generate Research candidates.</h3><p>This lab shows Research candidates, not trading-condition changes.</p>`);
   setHtml("researchSuggestions", engine.results.intelligence.map((s) => `<div class="suggestion"><div class="stars">${s.stars}</div><div><h4>${escapeHtml(s.title)}</h4><p><span class="tag">${escapeHtml(s.target)}</span></p><p>${escapeHtml(s.reason)}</p></div></div>`).join("") || `<div class="empty">No Research candidates yet.</div>`);
-  document.getElementById("chatgptPrompt").value = engine.getPrompt();
+  if (byId("chatgptPrompt")) byId("chatgptPrompt").value = engine.getPrompt();
 }
 
 function renderTimeline() {
@@ -246,7 +300,12 @@ function avgSignalSuccess(rows) { return rows.length ? rows.reduce((acc, x) => a
 function engineEvolution(history) {
   if (history.length < 2) return `<div class="empty">Run Analyzer at least twice to show evolution.</div>`;
   const prev = history[history.length - 2], cur = history[history.length - 1];
-  return table(["Metric", "Diff"], [["Trade", signed(cur.trades - prev.trades)], ["NearMiss", signed(cur.nearMiss - prev.nearMiss)], ["WinRate", `${signed(round(cur.winRate - prev.winRate))}%`], ["ProfitFactor", signed(round(cur.profitFactor - prev.profitFactor))]]);
+  return table(["Metric", "Previous", "Current", "Diff", "Trend"], [
+    ["Trade", prev.trades, cur.trades, signed(cur.trades - prev.trades), trend(cur.trades - prev.trades)],
+    ["NearMiss", prev.nearMiss, cur.nearMiss, signed(cur.nearMiss - prev.nearMiss), "Use normalized rates"],
+    ["WinRate", `${round(prev.winRate)}%`, `${round(cur.winRate)}%`, `${signed(round(cur.winRate - prev.winRate))}%`, trend(cur.winRate - prev.winRate)],
+    ["ProfitFactor", round(prev.profitFactor), round(cur.profitFactor), signed(round(cur.profitFactor - prev.profitFactor)), trend(cur.profitFactor - prev.profitFactor)]
+  ]);
 }
 
 function drawLine(id, points, label) { makeChart(id, { type: "line", data: { labels: points.map((p) => p.x), datasets: [{ label, data: points.map((p) => p.y), borderColor: "#49a9ff", backgroundColor: "rgba(73,169,255,.18)", tension: .28, fill: true }] } }); }
@@ -256,30 +315,24 @@ function drawPie(id, labels, data, label) { makeChart(id, { type: "doughnut", da
 function drawRadar(id, e) { const data = e ? [Math.min(e.trade?.trades || 0, 100), Math.min(e.trade?.winRate || 0, 100), Math.min(e.timeOk, 100), Math.min(e.entryRate, 100), e.score * 20, e.topNg.length ? 70 : 20] : [0, 0, 0, 0, 0, 0]; makeChart(id, { type: "radar", data: { labels: ["Trade", "WinRate", "TimeOK", "EntryRate", "Health", "ResearchScore"], datasets: [{ label: e?.engine || "Engine", data, borderColor: "#39d8ff", backgroundColor: "rgba(57,216,255,.18)" }] } }); }
 
 function makeChart(id, config) {
-  const canvas = document.getElementById(id);
+  const canvas = byId(id);
   if (!canvas || !window.Chart) return;
   if (charts[id]) charts[id].destroy();
   charts[id] = new Chart(canvas, { ...config, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: "#cce8ff" } } }, scales: config.type === "doughnut" || config.type === "radar" ? {} : { x: { ticks: { color: "#9db5cc" }, grid: { color: "rgba(157,181,204,.14)" } }, y: { ticks: { color: "#9db5cc" }, grid: { color: "rgba(157,181,204,.14)" } } } } });
 }
 
-function setHtml(id, html) { const el = document.getElementById(id); if (el) el.innerHTML = html; }
-function setText(id, text) { const el = document.getElementById(id); if (el) el.textContent = text; }
+function setHtml(id, html) { const el = byId(id); if (el) el.innerHTML = html; }
+function setText(id, text) { const el = byId(id); if (el) el.textContent = text; }
 function fmt(value) { return Number(value || 0).toLocaleString(); }
 function pct(value) { return `${round(value)}%`; }
 function pf(value) { return value >= 999 ? "Infinity" : String(round(value)); }
 function signed(value) { return value > 0 ? `+${value}` : String(value); }
+function trend(value) { return value > 0 ? "Improving" : value < 0 ? "Worsening" : "Stable"; }
 function healthClass(value) { return value === "Needs Research" ? "Needs" : value || "Inactive"; }
 function escapeHtml(value) { return String(value ?? "").replace(/[&<>"']/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" }[m])); }
 
-function downloadHistory() {
-  downloadText("ResearchHistory.json", JSON.stringify(loadResearchHistory(), null, 2), "application/json");
-}
-
-function downloadMarkdownReport() {
-  const memo = document.getElementById("researchMemo").value;
-  downloadText("ResearchReport.md", buildMarkdownReport(engine.results, memo), "text/markdown");
-}
-
+function downloadHistory() { downloadText("ResearchHistory.json", JSON.stringify(loadResearchHistory(), null, 2), "application/json"); }
+function downloadMarkdownReport() { downloadText("ResearchReport.md", buildMarkdownReport(engine.results, byId("researchMemo")?.value || ""), "text/markdown"); }
 function downloadText(filename, text, type) {
   const blob = new Blob([text], { type });
   const url = URL.createObjectURL(blob);

@@ -367,6 +367,38 @@ pre {
   transition: background .15s ease;
 }
 
+.filter-row {
+  display: flex;
+  justify-content: flex-end;
+  margin: -4px 0 14px;
+}
+
+.filter-row label {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+select {
+  margin-left: 8px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: var(--text);
+  background: var(--panel-2);
+  padding: 8px 10px;
+}
+
+.warning-list {
+  display: grid;
+  gap: 8px;
+  color: var(--yellow);
+}
+
+.score-breakdown {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(35, 64, 93, .8);
+}
+
 .empty {
   color: var(--muted);
   padding: 18px;

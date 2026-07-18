@@ -20,6 +20,13 @@ class AnalysisEngine {
       heatmaps: {},
       progress: {},
       comparison: null,
+      validation: [],
+      nearMissDeep: {},
+      holding: [],
+      spread: [],
+      sessionConditionMatrix: [],
+      selectedEngine: "All Engines",
+      dataset: {},
       timeline: [],
       csvManager: []
     };
@@ -32,17 +39,20 @@ class AnalysisEngine {
       const text = await file.text();
       const parsed = parseCsv(text);
       const type = detectCsvType(file.name, parsed.headers);
+      const validation = validateCsv(file, type, parsed);
       this.files.set(type.key, {
         name: file.name,
         type,
         size: file.size,
         updated: file.lastModified ? new Date(file.lastModified) : null,
         headers: parsed.headers,
-        rows: parsed.rows
+        rows: parsed.rows,
+        validation,
+        replaced: this.files.has(type.key)
       });
     }
     this.rebuild();
-    saveResearchSnapshot(this.results);
+    saveResearchSnapshot(this.results, Array.from(this.files.values()));
     this.results.timeline = loadResearchHistory();
     return this.results;
   }
@@ -72,8 +82,14 @@ class AnalysisEngine {
     this.results.signal = analyzeSignals(this.datasets.signalLog, this.results.trades);
     this.results.intelligence = buildResearchIntelligence(this.results);
     this.results.condition = analyzeConditions(this.results);
+    this.results.nearMissDeep = analyzeNearMissDeep(this.datasets.nearMiss);
+    this.results.holding = analyzeHolding(this.results.trades);
+    this.results.spread = analyzeSpread(this.results.trades, this.datasets.nearMiss);
+    this.results.sessionConditionMatrix = analyzeSessionConditionMatrix(this.datasets.sessionResearch, this.datasets.nearMiss);
     this.results.heatmaps = buildHeatmaps(this.results);
     this.results.progress = analyzeResearchProgress(this.results);
+    this.results.validation = Array.from(this.files.values()).map((file) => file.validation);
+    this.results.dataset = buildDatasetSummary(Array.from(this.files.values()), this.results.trades);
     this.results.report = buildResearchReport(this.results);
     this.results.comparison = compareWithPrevious(this.results);
     this.results.timeline = loadResearchHistory();
@@ -121,6 +137,16 @@ class AIAnalysisEngine {
     };
   }
 }
+
+const REQUIRED_COLUMNS = {
+  tradeHistory: ["Engine", "Pips"],
+  nearMiss: ["Engine"],
+  engineActivity: ["Engine"],
+  engineActivityV2: ["Engine"],
+  engineRuntime: ["Engine", "Status"],
+  sessionResearch: ["Session", "Engine"],
+  signalLog: ["Engine"]
+};
 
 const CSV_TYPES = [
   { key: "tradeHistory", names: ["tradehistory.csv"], label: "TradeHistory.csv", version: "v1", description: "Executed trade history", usage: "Dashboard / Trade" },
@@ -181,6 +207,33 @@ function detectCsvType(name, headers) {
   if (headerText.includes("fullsignaltruecount")) return CSV_TYPES.find((t) => t.key === "engineActivityV2");
   if (headerText.includes("engine") && headerText.includes("entry") && headerText.includes("exit")) return CSV_TYPES.find((t) => t.key === "tradeHistory");
   return { key: `unknown:${lower}`, names: [lower], label: name, version: "unknown", description: "Unknown CSV", usage: "CSV Manager" };
+}
+
+function validateCsv(file, type, parsed) {
+  const required = REQUIRED_COLUMNS[type.key] || [];
+  const headerSet = new Set(parsed.headers.map((h) => h.toLowerCase()));
+  const missing = required.filter((col) => !headerSet.has(col.toLowerCase()));
+  const warnings = [];
+  if (type.key.startsWith("unknown:")) warnings.push("Unknown CSV type. This file was skipped by analysis.");
+  if (!parsed.rows.length) warnings.push("Empty CSV.");
+  if (missing.length) warnings.push(`Missing required columns: ${missing.join(", ")}`);
+  if (!parsed.headers.length) warnings.push("No header row found.");
+  let status = "Valid";
+  if (type.key.startsWith("unknown:")) status = "Unknown CSV";
+  else if (!parsed.rows.length) status = "Empty CSV";
+  else if (missing.length) status = "Missing required columns";
+  else if (warnings.length) status = "Valid with warnings";
+  return {
+    fileName: file.name,
+    csvType: type.label,
+    version: type.version,
+    requiredColumns: required,
+    missingColumns: missing,
+    rows: parsed.rows.length,
+    headers: parsed.headers.length,
+    status,
+    warnings
+  };
 }
 
 function normalizeTrades(rows) {
@@ -274,6 +327,8 @@ function analyzeEngineActivity(rows, tradeByEngine) {
     const topNg = topNgFromRow(row);
     const trade = tradeByEngine.find((x) => normalizeName(x.name) === normalizeName(engine));
     const score = researchScore2({ trade, checks, timeOk, full, entries, entryRate, topNg });
+    const breakdown = researchScoreBreakdown({ trade, checks, timeOk, full, entries, entryRate, topNg });
+    const confidence = calcConfidence({ trade, checks, timeOk, full, entries, topNg });
     return {
       engine,
       enabled: clean(pick(row, ["Enabled"])) || "true",
@@ -292,6 +347,8 @@ function analyzeEngineActivity(rows, tradeByEngine) {
       health: engineHealth({ checks, timeOk, full, entries, topNg, trade }),
       researchScore: stars(score),
       score,
+      breakdown,
+      confidence,
       trade
     };
   }).sort((a, b) => b.score - a.score);
@@ -316,6 +373,41 @@ function analyzeNearMiss(rows) {
   });
   const closestEngine = Object.entries(byEngine).sort((a, b) => b[1] - a[1])[0] || ["None", 0];
   return { total: rows.length, buckets, byEngine: toRank(byEngine), ngReasons: toRank(ngReasons), combos: toRank(combos), closestEngine: { engine: closestEngine[0], count: closestEngine[1] } };
+}
+
+function analyzeNearMissDeep(rows) {
+  const byEngineSession = {};
+  const statePatterns = {};
+  const single = {};
+  rows.forEach((row) => {
+    const engine = clean(pick(row, ["Engine"])) || "Unknown";
+    const session = clean(pick(row, ["Session"])) || "Unknown";
+    const reasons = splitReasons(clean(pick(row, ["NGReasons", "NGReason", "TopNG"]))).map(normalizeConditionName);
+    const ngCount = num(pick(row, ["NGCount"])) || reasons.length || 1;
+    const key = `${engine}||${session}`;
+    const rec = byEngineSession[key] ||= { engine, session, total: 0, one: 0, two: 0, threePlus: 0, top: {} };
+    rec.total++;
+    if (ngCount <= 1) rec.one++;
+    else if (ngCount === 2) rec.two++;
+    else rec.threePlus++;
+    reasons.forEach((r) => rec.top[r] = (rec.top[r] || 0) + 1);
+
+    if (ngCount <= 1 && reasons[0]) {
+      const sKey = `${engine}||${session}||${reasons[0]}`;
+      single[sKey] = (single[sKey] || 0) + 1;
+    }
+
+    const pattern = buildConditionStatePattern(row, reasons);
+    statePatterns[pattern] = (statePatterns[pattern] || 0) + 1;
+  });
+  return {
+    engineSession: Object.values(byEngineSession).map((x) => ({ ...x, topNg: toRank(x.top).slice(0, 3) })).sort((a, b) => b.total - a.total),
+    statePatterns: toRank(statePatterns).slice(0, 20),
+    singleBottlenecks: Object.entries(single).map(([key, count]) => {
+      const [engine, session, reason] = key.split("||");
+      return { engine, session, reason, count };
+    }).sort((a, b) => b.count - a.count)
+  };
 }
 
 function analyzeSessionResearch(rows, trades, nearRows) {
@@ -378,6 +470,9 @@ function buildResearchIntelligence(results) {
   (results.nearMiss.combos || []).slice(0, 6).forEach((combo, idx) => {
     items.push(makeSuggestion("NearMiss Combo Research", combo.name, idx < 2 ? 5 : 4, `${combo.name} stopped ${combo.count} times.`));
   });
+  (results.nearMissDeep.singleBottlenecks || []).slice(0, 5).forEach((x) => {
+    items.push(makeSuggestion("Single Bottleneck Research", `${x.engine} / ${x.session} / ${x.reason}`, 5, `Only ${x.reason} stopped ${x.count} NearMiss records. Required data: at least 100 NearMiss samples by session, spread, ATR and RSI.`));
+  });
   results.session.forEach((s) => {
     if (s.nearMiss > s.trades) {
       items.push(makeSuggestion("Session Research", s.session, Math.min(5, Math.max(3, Math.round(s.nearMiss / 10))), `${s.session}: Trades ${s.trades}, NearMiss ${s.nearMiss}. TopNG: ${s.topNg.map((x) => x.name).join(" / ") || "None"}.`));
@@ -407,6 +502,57 @@ function analyzeConditions(results) {
     const score = Math.min(5, Math.max(1, Math.round(nearMiss / 25) + (trades > 0 ? 1 : 0)));
     return { condition, trades, nearMiss, topNg: nearMiss, researchScore: stars(score), score, note: notes[condition]?.slice(0, 3).join(" / ") || "-" };
   }).sort((a, b) => b.score - a.score || b.nearMiss - a.nearMiss);
+}
+
+function analyzeHolding(trades) {
+  const buckets = [
+    ["0-5m", (v) => v <= 5],
+    ["6-10m", (v) => v > 5 && v <= 10],
+    ["11-20m", (v) => v > 10 && v <= 20],
+    ["21-30m", (v) => v > 20 && v <= 30],
+    ["31m+", (v) => v > 30]
+  ];
+  return buckets.map(([name, fn]) => {
+    const list = trades.filter((t) => fn(t.holding));
+    const wins = list.filter((t) => t.pips > 0);
+    return { bucket: name, trades: list.length, winRate: ratio(wins.length, list.length), averagePips: avg(list, "pips"), status: list.length < 10 ? "Data Insufficient" : "OK" };
+  });
+}
+
+function analyzeSpread(trades, nearRows) {
+  const buckets = [
+    ["0-1", (v) => v >= 0 && v < 1],
+    ["1-2", (v) => v >= 1 && v < 2],
+    ["2-3", (v) => v >= 2 && v < 3],
+    ["3+", (v) => v >= 3]
+  ];
+  return buckets.map(([name, fn]) => {
+    const list = trades.filter((t) => fn(t.spread));
+    const near = nearRows.filter((r) => fn(num(pick(r, ["Spread", "SpreadPips"]))));
+    const wins = list.filter((t) => t.pips > 0);
+    return { bucket: name, trades: list.length, nearMiss: near.length, winRate: ratio(wins.length, list.length), averagePips: avg(list, "pips"), averageSpread: avg(list, "spread") };
+  });
+}
+
+function analyzeSessionConditionMatrix(sessionRows, nearRows) {
+  const sessions = ["Tokyo", "London", "NY", "Other"];
+  const conditions = ["RSI", "ATR", "BB", "Volume", "Spread", "Time"];
+  return sessions.map((session) => {
+    const row = { session };
+    conditions.forEach((c) => row[c] = 0);
+    sessionRows.filter((r) => (clean(pick(r, ["Session"])) || "Other") === session).forEach((r) => {
+      topNgSession([r]).forEach((ng) => {
+        const c = normalizeConditionName(ng.name);
+        if (row[c] !== undefined) row[c] += ng.count;
+      });
+    });
+    nearRows.filter((r) => (clean(pick(r, ["Session"])) || "Other") === session).forEach((r) => {
+      splitReasons(clean(pick(r, ["NGReasons", "NGReason"]))).map(normalizeConditionName).forEach((c) => {
+        if (row[c] !== undefined) row[c] += 1;
+      });
+    });
+    return row;
+  });
 }
 
 function buildHeatmaps(results) {
@@ -442,7 +588,11 @@ function buildResearchReport(results) {
   const topNear = results.nearMiss.ngReasons?.[0];
   const topSession = results.session[0];
   const topResearch = results.intelligence[0];
-  const lines = ["Today's Research Report", ""];
+  const lines = ["Today's Research Report 2.0", ""];
+  lines.push(`Dataset: ${results.dataset.datasetStart || "-"} to ${results.dataset.datasetEnd || "-"} / ${results.dataset.datasetDays || 0} days.`);
+  const warningCount = results.validation.reduce((acc, v) => acc + (v.warnings?.length || 0), 0);
+  lines.push(`CSV validation: ${results.validation.length} files, ${warningCount} warnings.`);
+  lines.push("");
   if (topEngine) {
     lines.push(`${topEngine.engine} recorded ${topEngine.checks} checks, ${topEngine.timeOk} TimeOK, ${topEngine.full} FullSignal, and ${topEngine.entries} entries.`);
     if (topEngine.topNg.length) lines.push(`Most frequent TopNG: ${topEngine.topNg[0].name} (${topEngine.topNg[0].count}).`);
@@ -452,6 +602,13 @@ function buildResearchReport(results) {
   if (results.nearMiss.total) lines.push(`NearMiss total: ${results.nearMiss.total}. Largest bottleneck: ${topNear?.name || "Unknown"} (${topNear?.count || 0}).`);
   if (topSession) lines.push(`Priority session candidate: ${topSession.session}. Trades ${topSession.trades}, NearMiss ${topSession.nearMiss}, Score ${topSession.researchScore}.`);
   if (topResearch) lines.push(`Next Research candidate: ${topResearch.title} / ${topResearch.target} / ${topResearch.stars}.`);
+  const single = results.nearMissDeep.singleBottlenecks?.[0];
+  if (single) lines.push(`Single bottleneck candidate: ${single.engine} / ${single.session} / ${single.reason} (${single.count}).`);
+  const pattern = results.nearMissDeep.statePatterns?.[0];
+  if (pattern) lines.push(`Most frequent condition state pattern: ${pattern.name} (${pattern.count}).`);
+  if (results.comparison) {
+    lines.push(`Comparison: Trade ${signed(results.comparison.trades)}, NearMiss ${signed(results.comparison.nearMiss)}, PF ${signed(round(results.comparison.profitFactor))}.`);
+  }
   lines.push("");
   lines.push("This report is not a trading-condition change instruction. Use it as a Research candidate map.");
   return { text: lines.join("\n"), lines };
@@ -467,22 +624,37 @@ function compareWithPrevious(results) {
     winRate: (results.dashboard.winRate || 0) - (prev.winRate || 0),
     profitFactor: (results.dashboard.profitFactor || 0) - (prev.profitFactor || 0),
     previousTopResearch: prev.topResearch?.[0]?.score || 0,
-    currentTopResearch: results.intelligence[0]?.score || 0
+    currentTopResearch: results.intelligence[0]?.score || 0,
+    warning: comparisonWarning(prev, results)
   };
 }
 
 function buildMarkdownReport(results, memo = "") {
-  const lines = ["# ScalpLayer Research Report", "", "## Today's Research Report", "", results.report?.text || "No report.", "", "## Engine Health", ""];
+  const lines = ["# ScalpLayer Research Report", "", "## Dataset Summary", "", `- Start: ${results.dataset.datasetStart || "-"}`, `- End: ${results.dataset.datasetEnd || "-"}`, `- Days: ${results.dataset.datasetDays || 0}`, `- Loaded CSV: ${(results.dataset.loadedCsvTypes || []).join(", ") || "-"}`, "", "## CSV Validation", ""];
+  results.validation.forEach((v) => lines.push(`- ${v.fileName}: ${v.status}${v.warnings.length ? ` (${v.warnings.join("; ")})` : ""}`));
+  lines.push("", "## Today's Research Report", "", results.report?.text || "No report.", "", "## Overall Performance", "", `- Trades: ${results.dashboard.totalTrades || 0}`, `- WinRate: ${round(results.dashboard.winRate || 0)}%`, `- ProfitFactor: ${round(results.dashboard.profitFactor || 0)}`, `- Expectancy: ${round(results.dashboard.expectancy || 0)} pips`, "", "## Engine Medical Chart", "");
   results.engineActivity.forEach((e) => lines.push(`- ${e.engine}: ${e.health}, Score ${e.researchScore}, TimeOK ${e.timeOk}, Full ${e.full}, Entries ${e.entries}, TopNG ${e.topNg.map((x) => x.name).join(" / ") || "-"}`));
-  lines.push("", "## NearMiss", "", `- Total: ${results.nearMiss.total || 0}`);
+  lines.push("", "## Engine Evolution", "", results.comparison ? `- Trade ${signed(results.comparison.trades)}, NearMiss ${signed(results.comparison.nearMiss)}, PF ${signed(round(results.comparison.profitFactor))}` : "- No previous snapshot.", "", "## NearMiss Deep Analysis", "", `- Total: ${results.nearMiss.total || 0}`);
   (results.nearMiss.ngReasons || []).slice(0, 10).forEach((x) => lines.push(`- ${x.name}: ${x.count}`));
+  lines.push("", "## Single Bottleneck Research", "");
+  (results.nearMissDeep.singleBottlenecks || []).slice(0, 10).forEach((x) => lines.push(`- ${x.engine} / ${x.session} / ${x.reason}: ${x.count}`));
+  lines.push("", "## Condition State Patterns", "");
+  (results.nearMissDeep.statePatterns || []).slice(0, 10).forEach((x) => lines.push(`- ${x.name}: ${x.count}`));
   lines.push("", "## Condition Intelligence", "");
   results.condition.slice(0, 10).forEach((x) => lines.push(`- ${x.condition}: NearMiss ${x.nearMiss}, Trades ${x.trades}, Score ${x.researchScore}`));
+  lines.push("", "## Session Condition Matrix", "");
+  results.sessionConditionMatrix.forEach((x) => lines.push(`- ${x.session}: RSI ${x.RSI}, ATR ${x.ATR}, BB ${x.BB}, Volume ${x.Volume}, Spread ${x.Spread}, Time ${x.Time}`));
+  lines.push("", "## Holding Analysis", "");
+  results.holding.forEach((x) => lines.push(`- ${x.bucket}: Trades ${x.trades}, WinRate ${round(x.winRate)}%, AvgPips ${round(x.averagePips)}, ${x.status}`));
+  lines.push("", "## Spread Analysis", "");
+  results.spread.forEach((x) => lines.push(`- ${x.bucket}: Trades ${x.trades}, NearMiss ${x.nearMiss}, AvgPips ${round(x.averagePips)}`));
   lines.push("", "## Session", "");
   results.session.forEach((s) => lines.push(`- ${s.session}: Trades ${s.trades}, NearMiss ${s.nearMiss}, WinRate ${round(s.winRate)}%, Score ${s.researchScore}`));
   lines.push("", "## Research Candidates", "");
   results.intelligence.slice(0, 10).forEach((x, i) => lines.push(`${i + 1}. ${x.stars} ${x.title} / ${x.target}: ${x.reason}`));
-  lines.push("", "## Research Memo", "", memo || "No memo.");
+  lines.push("", "## Data Confidence", "");
+  results.engineActivity.forEach((e) => lines.push(`- ${e.engine}: ${e.confidence}`));
+  lines.push("", "## Research Memo", "", memo || "No memo.", "", "## Next Data Collection", "", "- Continue collecting TradeHistory and EngineActivity.", "- Keep NearMissHistory enabled.", "- Compare normalized values, not raw NearMiss only.");
   return lines.join("\n");
 }
 
@@ -490,15 +662,27 @@ function makeSuggestion(title, target, score, reason) {
   return { title, target, score, stars: stars(score), reason };
 }
 
-function saveResearchSnapshot(results) {
+function saveResearchSnapshot(results, files = []) {
   const history = loadResearchHistory();
+  const fingerprint = datasetFingerprint(files, results);
+  if (history.some((h) => h.fingerprint === fingerprint)) {
+    console.info("Duplicate snapshot skipped");
+    return;
+  }
   const snapshot = {
+    fingerprint,
     datetime: new Date().toISOString(),
+    datasetStart: results.dataset.datasetStart,
+    datasetEnd: results.dataset.datasetEnd,
+    datasetDays: results.dataset.datasetDays,
+    loadedCsvTypes: results.dataset.loadedCsvTypes,
+    validationWarnings: results.validation.flatMap((v) => v.warnings || []),
     trades: results.dashboard.totalTrades || 0,
     nearMiss: results.nearMiss.total || 0,
     winRate: results.dashboard.winRate || 0,
     profitFactor: results.dashboard.profitFactor || 0,
-    engineRank: results.engineActivity.slice(0, 8).map((x) => ({ name: x.engine, health: x.health, score: x.score, entries: x.entries, timeOk: x.timeOk })),
+    checks: results.engineActivity.reduce((acc, x) => acc + x.checks, 0),
+    engineRank: results.engineActivity.slice(0, 8).map((x) => ({ name: x.engine, health: x.health, score: x.score, confidence: x.confidence, entries: x.entries, timeOk: x.timeOk, checks: x.checks, fullSignal: x.full, entryRate: x.entryRate, topNG: x.topNg })),
     topEngines: results.tradeByEngine.slice(0, 5).map((x) => ({ name: x.name, trades: x.trades, pips: round(x.pips), winRate: round(x.winRate) })),
     topResearch: results.intelligence.slice(0, 5).map((x) => ({ title: x.title, target: x.target, score: x.score })),
     topNG: results.nearMiss.ngReasons.slice(0, 5),
@@ -656,7 +840,7 @@ function dedupeSuggestions(items) {
 function buildCsvManager(files) {
   return CSV_TYPES.map((type) => {
     const file = files.find((f) => f.type.key === type.key);
-    return { label: type.label, exists: Boolean(file), rows: file?.rows.length || 0, columns: file?.headers.length || 0, updated: file?.updated, version: type.version, description: type.description, usage: type.usage };
+    return { label: type.label, exists: Boolean(file), rows: file?.rows.length || 0, columns: file?.headers.length || 0, updated: file?.updated, version: type.version, description: type.description, usage: type.usage, validation: file?.validation?.status || "Not loaded", warnings: file?.validation?.warnings || [], replaced: Boolean(file?.replaced) };
   });
 }
 
@@ -684,4 +868,76 @@ function conditionTradeHit(t, name) {
   if (name === "Volume") return t.volume > 0;
   if (name === "Spread") return t.spread > 0;
   return false;
+}
+
+function researchScoreBreakdown({ trade, checks, timeOk, full, entries, entryRate, topNg }) {
+  const parts = [];
+  const data = checks >= 100 || (trade?.trades || 0) >= 20 ? 1.0 : checks >= 20 ? 0.5 : 0;
+  const near = topNg.length ? 1.0 : 0;
+  const clear = topNg[0]?.count > 0 ? 1.0 : 0;
+  const evidence = (trade?.trades || 0) >= 10 ? 0.75 : entries > 0 ? 0.5 : 0;
+  const session = timeOk >= 50 ? 0.5 : 0;
+  const penalty = checks < 20 && (trade?.trades || 0) < 5 ? -0.5 : 0;
+  parts.push(["Data Volume", data]);
+  parts.push(["NearMiss / TopNG", near]);
+  parts.push(["Clear Bottleneck", clear]);
+  parts.push(["Trade Evidence", evidence]);
+  parts.push(["Session Potential", session]);
+  parts.push(["Confidence Penalty", penalty]);
+  return parts;
+}
+
+function calcConfidence({ trade, checks, timeOk, entries, topNg }) {
+  const trades = trade?.trades || 0;
+  const evidence = trades + entries + Math.min(50, checks / 10) + Math.min(30, timeOk / 10) + topNg.reduce((a, b) => a + b.count, 0) / 20;
+  if (evidence >= 80) return "High";
+  if (evidence >= 35) return "Medium";
+  if (evidence >= 10) return "Low";
+  return "Insufficient";
+}
+
+function buildConditionStatePattern(row, reasons) {
+  const fields = ["RSI", "ATR", "BB", "Volume", "Spread", "Time", "RecentDrop", "RecentRise", "HighUpdate", "LowUpdate", "BullStreak", "BearStreak"];
+  const hasExplicit = fields.some((f) => clean(pick(row, [`${f}_OK`, `${f}OK`, f === "Volume" ? "Vol_OK" : ""])));
+  if (hasExplicit) {
+    return fields.map((f) => {
+      const raw = clean(pick(row, [`${f}_OK`, `${f}OK`, f === "Volume" ? "Vol_OK" : ""])).toLowerCase();
+      if (["true", "1", "ok", "yes"].includes(raw)) return `${f} OK`;
+      if (["false", "0", "ng", "no"].includes(raw)) return `${f} NG`;
+      return null;
+    }).filter(Boolean).join(" / ");
+  }
+  return reasons.length ? reasons.map((r) => `${r} NG`).join(" / ") : "Condition State Pattern";
+}
+
+function buildDatasetSummary(files, trades) {
+  const dates = trades.map((t) => t.datetime).filter(Boolean).sort((a, b) => a - b);
+  const start = dates[0] || null;
+  const end = dates[dates.length - 1] || null;
+  const days = start && end ? Math.max(1, Math.round((end - start) / 86400000) + 1) : 0;
+  return {
+    datasetStart: start ? start.toISOString().slice(0, 10) : "",
+    datasetEnd: end ? end.toISOString().slice(0, 10) : "",
+    datasetDays: days,
+    loadedCsvTypes: files.map((f) => f.type.label),
+    fileCount: files.length
+  };
+}
+
+function datasetFingerprint(files, results) {
+  const filePart = files.map((f) => `${f.name}:${f.rows.length}:${f.size}:${f.updated?.getTime?.() || 0}`).sort().join("|");
+  return `${filePart}|T${results.dashboard.totalTrades || 0}|N${results.nearMiss.total || 0}`;
+}
+
+function comparisonWarning(prev, results) {
+  const currentChecks = results.engineActivity.reduce((acc, x) => acc + x.checks, 0);
+  const prevChecks = prev.checks || 0;
+  if (!currentChecks || !prevChecks) return "";
+  const diff = Math.abs(currentChecks - prevChecks) / Math.max(currentChecks, prevChecks) * 100;
+  if (diff >= 30) return `Comparison Warning: CheckCount differs by ${round(diff)}%. Comparison reliability is low.`;
+  return "";
+}
+
+function signed(value) {
+  return value > 0 ? `+${value}` : String(value);
 }
