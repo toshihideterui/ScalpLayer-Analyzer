@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>ScalpLayer Analyzer v2.0 Research Intelligence Edition</title>
+  <title>ScalpLayer Research Lab v3.0</title>
   <link rel="stylesheet" href="style.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 </head>
@@ -13,25 +13,28 @@
       <div class="brand">
         <div class="brand-mark">SL</div>
         <div>
-          <h1>ScalpLayer Analyzer</h1>
-          <p>Research Intelligence Edition v2.0</p>
+          <h1>ScalpLayer Research Lab</h1>
+          <p>AI Research Lab Edition v3.0</p>
         </div>
       </div>
 
       <label class="file-loader" for="csvFiles">
-        <span>CSVを読み込む</span>
-        <small>複数選択・ドラッグ対応</small>
+        <span>Load CSV Files</span>
+        <small>Multiple CSV supported</small>
       </label>
       <input id="csvFiles" type="file" accept=".csv,text/csv" multiple>
 
       <div class="drop-zone" id="dropZone">
         <strong>Drop CSV Files</strong>
-        <span>TradeHistory / EngineActivity / NearMiss など</span>
+        <span>TradeHistory / EngineActivity / NearMiss etc.</span>
       </div>
 
       <nav class="tabs" aria-label="Analyzer tabs">
         <button class="tab active" data-tab="dashboard">Dashboard</button>
+        <button class="tab" data-tab="lab">AI Research Report</button>
         <button class="tab" data-tab="engine">Engine</button>
+        <button class="tab" data-tab="condition">Condition</button>
+        <button class="tab" data-tab="heatmap">HeatMap</button>
         <button class="tab" data-tab="session">Session</button>
         <button class="tab" data-tab="nearmiss">NearMiss</button>
         <button class="tab" data-tab="trade">Trade</button>
@@ -44,8 +47,8 @@
       <div class="status-card">
         <span class="status-dot" id="statusDot"></span>
         <div>
-          <strong id="statusTitle">CSV未読込</strong>
-          <p id="statusText">EAが出力したCSVを読み込んでください。</p>
+          <strong id="statusTitle">No CSV loaded</strong>
+          <p id="statusText">Load CSV files exported by the EA.</p>
         </div>
       </div>
     </aside>
@@ -57,185 +60,123 @@
           <h2 id="pageTitle">Dashboard</h2>
         </div>
         <div class="top-actions">
-          <button id="promptButton" class="ghost-button">ChatGPT依頼文</button>
-          <button id="downloadHistoryButton" class="ghost-button">履歴JSON</button>
+          <button id="promptButton" class="ghost-button">Prompt Builder</button>
+          <button id="downloadReportButton" class="ghost-button">ResearchReport.md</button>
+          <button id="downloadHistoryButton" class="ghost-button">History JSON</button>
           <button id="resetButton" class="ghost-button">Reset</button>
         </div>
       </header>
 
       <section class="tab-panel active" id="dashboard">
         <div class="hero-card">
-          <span class="pill">Research Dashboard</span>
-          <h3>CSVからEAの健康状態と次回Research候補を自動評価します。</h3>
-          <p>このAnalyzerは売買条件を変更しません。Trade、NearMiss、EngineActivity、SessionResearchを読み取り、研究すべきテーマを可視化します。</p>
+          <span class="pill">Research Lab Dashboard</span>
+          <h3>ScalpLayer Project health, Research targets, and next hypotheses.</h3>
+          <p>This tool never rewrites the EA or CSV. It only turns exported CSV data into Research candidates.</p>
         </div>
-        <div id="todaysResearch" class="research-strip"></div>
+        <div id="labDashboard" class="research-strip"></div>
+        <div id="progressPanel" class="card"></div>
         <div class="metric-grid" id="dashboardMetrics"></div>
         <div class="grid two">
-          <article class="card">
-            <div class="card-head"><h3>累積損益</h3><span>TradeHistory</span></div>
-            <canvas id="equityChart"></canvas>
-          </article>
-          <article class="card">
-            <div class="card-head"><h3>Engine別利益</h3><span>Ranking</span></div>
-            <canvas id="engineProfitChart"></canvas>
-          </article>
+          <article class="card"><div class="card-head"><h3>Equity Curve</h3><span>TradeHistory</span></div><canvas id="equityChart"></canvas></article>
+          <article class="card"><div class="card-head"><h3>Engine Profit</h3><span>Ranking</span></div><canvas id="engineProfitChart"></canvas></article>
         </div>
         <div class="grid two">
-          <article class="card">
-            <h3>Engine利益ランキング</h3>
-            <div id="engineProfitRanking"></div>
-          </article>
-          <article class="card">
-            <h3>時間帯・曜日サマリー</h3>
-            <div id="timeWeekSummary"></div>
-          </article>
+          <article class="card"><h3>Engine Profit Ranking</h3><div id="engineProfitRanking"></div></article>
+          <article class="card"><h3>Time / Weekday Summary</h3><div id="timeWeekSummary"></div></article>
+        </div>
+      </section>
+
+      <section class="tab-panel" id="lab">
+        <div class="section-head"><h3>AI Research Report</h3><p>Rule-based research report. No AI API is used.</p></div>
+        <article class="hero-card"><pre id="researchReportText"></pre></article>
+        <div class="grid two">
+          <article class="card"><h3>Research Comparison</h3><div id="researchComparison"></div></article>
+          <article class="card"><h3>Research Progress</h3><div id="researchProgressDetails"></div></article>
         </div>
       </section>
 
       <section class="tab-panel" id="engine">
-        <div class="section-head">
-          <h3>Engine</h3>
-          <p>EngineActivityを解析し、Checks、TimeOK、FullSignal、EntryRate、TopNG、健康状態を確認します。</p>
-        </div>
+        <div class="section-head"><h3>Engine Medical Chart</h3><p>Engine health, Research Score, TimeOK, EntryRate, and TopNG.</p></div>
         <div id="engineCards" class="engine-card-grid"></div>
         <div class="grid two">
-          <article class="card">
-            <h3>Engine Radar</h3>
-            <canvas id="engineRadarChart"></canvas>
-          </article>
-          <article class="card">
-            <h3>TopNGランキング</h3>
-            <div id="topNgTable"></div>
-          </article>
+          <article class="card"><h3>Engine Radar</h3><canvas id="engineRadarChart"></canvas></article>
+          <article class="card"><h3>TopNG Ranking</h3><div id="topNgTable"></div></article>
         </div>
       </section>
 
+      <section class="tab-panel" id="condition">
+        <div class="section-head"><h3>Condition Intelligence</h3><p>RSI / ATR / BB / Volume / Spread / Time level Research candidates.</p></div>
+        <article class="card"><div id="conditionTable"></div></article>
+      </section>
+
+      <section class="tab-panel" id="heatmap">
+        <div class="section-head"><h3>TopNG & Session HeatMap</h3><p>Darker cells indicate larger values.</p></div>
+        <article class="card"><h3>Engine x NG Condition</h3><div id="topNgHeatmap"></div></article>
+        <article class="card"><h3>Session HeatMap</h3><div id="sessionHeatmap"></div></article>
+      </section>
+
       <section class="tab-panel" id="session">
-        <div class="section-head">
-          <h3>Session</h3>
-          <p>東京・ロンドン・NY・その他のTrade、NearMiss、条件成立率、Research Scoreを比較します。</p>
-        </div>
+        <div class="section-head"><h3>Session Intelligence</h3><p>Tokyo, London, NY, and Other session comparison.</p></div>
         <div class="grid two">
           <article class="card"><canvas id="sessionChart"></canvas></article>
           <article class="card"><canvas id="sessionConditionChart"></canvas></article>
         </div>
-        <article class="card">
-          <h3>Session Intelligence</h3>
-          <div id="sessionTable"></div>
-        </article>
+        <article class="card"><h3>Session Table</h3><div id="sessionTable"></div></article>
       </section>
 
       <section class="tab-panel" id="nearmiss">
-        <div class="section-head">
-          <h3>NearMiss</h3>
-          <p>あと1条件、あと2条件、あと3条件以上に分類し、最後に止めた条件をランキング化します。</p>
+        <div class="section-head"><h3>NearMiss Intelligence</h3><p>Classifies candidates by remaining NG conditions and bottleneck combos.</p></div>
+        <div class="grid two">
+          <article class="card"><h3>NearMiss Classes</h3><canvas id="nearMissChart"></canvas></article>
+          <article class="card"><h3>Closest Engine</h3><div id="closestEngine"></div></article>
         </div>
         <div class="grid two">
-          <article class="card">
-            <h3>NearMiss分類</h3>
-            <canvas id="nearMissChart"></canvas>
-          </article>
-          <article class="card">
-            <h3>一番惜しいEngine</h3>
-            <div id="closestEngine"></div>
-          </article>
-        </div>
-        <div class="grid two">
-          <article class="card">
-            <h3>ボトルネック組み合わせ</h3>
-            <div id="nearMissComboTable"></div>
-          </article>
-          <article class="card">
-            <h3>NG条件ランキング</h3>
-            <div id="nearMissTable"></div>
-          </article>
+          <article class="card"><h3>Bottleneck Combos</h3><div id="nearMissComboTable"></div></article>
+          <article class="card"><h3>NG Reason Ranking</h3><div id="nearMissTable"></div></article>
         </div>
       </section>
 
       <section class="tab-panel" id="trade">
-        <div class="section-head">
-          <h3>Trade</h3>
-          <p>実際に約定・決済されたTradeHistoryをEngine別、曜日別、保有時間別に評価します。</p>
-        </div>
+        <div class="section-head"><h3>Trade</h3><p>Executed trade performance.</p></div>
         <div class="grid two">
           <article class="card"><canvas id="tradeEngineChart"></canvas></article>
           <article class="card"><canvas id="weekdayChart"></canvas></article>
         </div>
-        <article class="card">
-          <h3>Engine別トレード成績</h3>
-          <div id="tradeTable"></div>
-        </article>
+        <article class="card"><h3>Trade by Engine</h3><div id="tradeTable"></div></article>
       </section>
 
       <section class="tab-panel" id="signal">
-        <div class="section-head">
-          <h3>Signal</h3>
-          <p>SignalログからSignal数、Engine別Signal、SignalからEntryまでの成功率を確認します。</p>
-        </div>
+        <div class="section-head"><h3>Signal</h3><p>Signal count and entry conversion.</p></div>
         <div class="grid two">
           <article class="card"><canvas id="signalChart"></canvas></article>
-          <article class="card">
-            <h3>Signal概要</h3>
-            <div id="signalSummary"></div>
-          </article>
+          <article class="card"><h3>Signal Summary</h3><div id="signalSummary"></div></article>
         </div>
-        <article class="card">
-          <h3>Engine別Signal</h3>
-          <div id="signalTable"></div>
-        </article>
+        <article class="card"><h3>Signal by Engine</h3><div id="signalTable"></div></article>
       </section>
 
       <section class="tab-panel" id="manager">
-        <div class="section-head">
-          <h3>CSV Manager</h3>
-          <p>読み込んだCSVの存在、件数、更新日時、列数、対応Versionを確認します。</p>
-        </div>
-        <article class="card">
-          <h3>読み込み済みCSV</h3>
-          <div id="csvManagerTable"></div>
-        </article>
-        <article class="card">
-          <h3>対応CSV仕様</h3>
-          <div id="csvSpecTable"></div>
-        </article>
+        <div class="section-head"><h3>CSV Manager</h3><p>Loaded CSV status and supported CSV versions.</p></div>
+        <article class="card"><h3>Loaded CSV</h3><div id="csvManagerTable"></div></article>
+        <article class="card"><h3>CSV Specification</h3><div id="csvSpecTable"></div></article>
       </section>
 
       <section class="tab-panel" id="intelligence">
-        <div class="section-head">
-          <h3>Research Intelligence</h3>
-          <p>AnalyzerがResearch候補をルールベースで提案します。条件変更ではなく、次に検証すべき仮説の整理です。</p>
-        </div>
+        <div class="section-head"><h3>Research Intelligence</h3><p>Research candidates generated from CSV. These are not direct trading-condition changes.</p></div>
         <div id="intelligenceHero" class="hero-card"></div>
         <div id="researchSuggestions" class="suggestion-list"></div>
-        <article class="card">
-          <h3>ChatGPT分析依頼文</h3>
-          <textarea id="chatgptPrompt" readonly></textarea>
-        </article>
+        <article class="card"><h3>AI Prompt Builder</h3><textarea id="chatgptPrompt" readonly></textarea></article>
       </section>
 
       <section class="tab-panel" id="timeline">
-        <div class="section-head">
-          <h3>Research Timeline</h3>
-          <p>Analyzer実行ごとの履歴をlocalStorageに保存し、Researchの推移を確認します。</p>
-        </div>
+        <div class="section-head"><h3>Research Timeline</h3><p>Local history, Engine Evolution, and Research Memo.</p></div>
         <div class="grid two">
-          <article class="card">
-            <h3>改善推移</h3>
-            <canvas id="timelineChart"></canvas>
-          </article>
-          <article class="card">
-            <h3>Engine Evolution</h3>
-            <div id="engineEvolution"></div>
-          </article>
+          <article class="card"><h3>Research Trend</h3><canvas id="timelineChart"></canvas></article>
+          <article class="card"><h3>Engine Evolution</h3><div id="engineEvolution"></div></article>
         </div>
         <article class="card">
           <h3>Research Memo</h3>
-          <textarea id="researchMemo" placeholder="例: 2026/07/17 Core Rule E NearMiss多い。RSI研究予定。"></textarea>
-          <div class="memo-actions">
-            <button id="saveMemoButton" class="ghost-button">メモ保存</button>
-            <span id="memoStatus"></span>
-          </div>
+          <textarea id="researchMemo" placeholder="Example: 2026/07/18 Core Rule E NearMiss is increasing. RSI research planned."></textarea>
+          <div class="memo-actions"><button id="saveMemoButton" class="ghost-button">Save Memo</button><span id="memoStatus"></span></div>
         </article>
       </section>
     </main>
