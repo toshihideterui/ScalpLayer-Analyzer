@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>ScalpLayer Research Lab v3.2</title>
+  <title>ScalpLayer Research Lab v4.0</title>
   <link rel="stylesheet" href="style.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 </head>
@@ -14,7 +14,7 @@
         <div class="brand-mark">SL</div>
         <div>
           <h1>ScalpLayer Research Lab</h1>
-          <p>Research Workflow & AI Research Manager Edition v3.2</p>
+          <p>AI Research Brain Edition v4.0</p>
         </div>
       </div>
 
@@ -44,6 +44,7 @@
         <button class="tab" data-tab="researchManager">Research Manager</button>
         <button class="tab" data-tab="researchBoard">Research Board</button>
         <button class="tab" data-tab="portfolio">Research Portfolio</button>
+        <button class="tab" data-tab="brain">AI Research Brain</button>
         <button class="tab" data-tab="timeline">Research Timeline</button>
       </nav>
 
@@ -209,12 +210,15 @@
         </div>
         <article class="card">
           <h3>Research List</h3>
-          <div class="form-grid compact">
-            <label>Status<select id="filterResearchStatus"></select></label>
-            <label>Category<select id="filterResearchCategory"></select></label>
-            <label>Decision<select id="filterResearchDecision"></select></label>
-            <label>Search<input id="researchSearch" type="text" placeholder="Search"></label>
-          </div>
+            <div class="form-grid compact">
+              <label>Status<select id="filterResearchStatus"></select></label>
+              <label>Category<select id="filterResearchCategory"></select></label>
+              <label>Decision<select id="filterResearchDecision"></select></label>
+              <label>Priority<select id="filterResearchPriority"></select></label>
+              <label>Confidence<select id="filterResearchConfidence"></select></label>
+              <label>Health<select id="filterResearchHealth"></select></label>
+              <label>Search<input id="researchSearch" type="text" placeholder="Search"></label>
+            </div>
           <div id="researchList"></div>
         </article>
       </section>
@@ -232,6 +236,34 @@
           <article class="card"><h3>Next Recommended Research</h3><div id="nextResearchRecommendation"></div></article>
         </div>
         <article class="card"><h3>Stale Research</h3><div id="staleResearchTable"></div></article>
+      </section>
+
+      <section class="tab-panel" id="brain">
+        <div class="section-head"><h3>AI Research Brain</h3><p>Rule-based Research Advisor. No AI API, no EA rewrite, no CSV rewrite.</p></div>
+        <div class="hero-card" id="brainOverview"></div>
+        <div class="grid two">
+          <article class="card"><h3>Today's Research Top5</h3><div id="brainRecommendations"></div></article>
+          <article class="card"><h3>Research Overview</h3><div id="brainOverviewMetrics"></div></article>
+        </div>
+        <div class="grid two">
+          <article class="card"><h3>Research Bottleneck</h3><div id="brainBottlenecks"></div></article>
+          <article class="card"><h3>Required Data Forecast</h3><div id="brainRequiredData"></div></article>
+        </div>
+        <article class="card"><h3>Research Priority Ranking</h3><div id="brainPriorityRanking"></div></article>
+        <div class="grid two">
+          <article class="card"><h3>Research Roadmap</h3><div id="brainRoadmap"></div></article>
+          <article class="card"><h3>Research Timeline 2.0</h3><canvas id="brainTimelineChart"></canvas></article>
+        </div>
+        <div class="grid two">
+          <article class="card"><h3>Research Quality Statistics</h3><div id="brainStatistics"></div></article>
+          <article class="card"><h3>Research Risk</h3><div id="brainRisks"></div></article>
+        </div>
+        <div class="grid two">
+          <article class="card"><h3>Knowledge Base</h3><div id="brainKnowledge"></div></article>
+          <article class="card"><h3>Research Cluster</h3><div id="brainClusters"></div></article>
+        </div>
+        <article class="card"><h3>Research Insight</h3><div id="brainInsights"></div></article>
+        <article class="card"><h3>Weekly / Monthly Summary</h3><div id="brainSummary"></div></article>
       </section>
 
       <section class="tab-panel" id="timeline">
@@ -253,6 +285,9 @@
   <script src="researchTemplates.js"></script>
   <script src="researchStorage.js"></script>
   <script src="researchManager.js"></script>
+  <script src="recommendationEngine.js"></script>
+  <script src="knowledgeEngine.js"></script>
+  <script src="brainEngine.js"></script>
   <script src="script.js"></script>
 </body>
 </html>

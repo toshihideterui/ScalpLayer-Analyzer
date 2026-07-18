@@ -67,7 +67,7 @@ function setupButtons() {
   on("createResearchButton", "click", createResearchFromForm);
   on("exportResearchManagerButton", "click", exportResearchManager);
   on("importResearchManagerInput", "change", importResearchManager);
-  ["filterResearchStatus", "filterResearchCategory", "filterResearchDecision", "researchSearch"].forEach((id) => {
+  ["filterResearchStatus", "filterResearchCategory", "filterResearchDecision", "filterResearchPriority", "filterResearchConfidence", "filterResearchHealth", "researchSearch"].forEach((id) => {
     on(id, id === "researchSearch" ? "input" : "change", () => {
       renderResearchManager();
       renderResearchBoard();
@@ -105,6 +105,7 @@ function renderAll() {
   renderResearchManager();
   renderResearchBoard();
   renderPortfolio();
+  renderBrain();
   renderTimeline();
 }
 
@@ -250,7 +251,12 @@ function renderIntelligence() {
     button.addEventListener("click", () => {
       const suggestion = engine.results.intelligence[Number(button.dataset.index)];
       if (!suggestion) return;
-      researchManager.createFromSuggestion(suggestion, analyzerSnapshot());
+      const result = researchManager.createFromSuggestion(suggestion, analyzerSnapshot());
+      if (!result.ok && result.duplicate) {
+        const proceed = window.confirm(`Duplicate Research candidate detected:\n${result.duplicate.title}\n\nAdd anyway?`);
+        if (!proceed) return;
+        researchManager.createFromSuggestion(suggestion, analyzerSnapshot(), { force: true });
+      }
       renderResearchManager();
       renderResearchBoard();
       renderPortfolio();
@@ -277,6 +283,9 @@ function fillResearchSelects() {
   fillSelect("researchStatus", RESEARCH_STATUSES);
   fillSelect("filterResearchStatus", ["All", ...RESEARCH_STATUSES]);
   fillSelect("filterResearchDecision", ["All", ...RESEARCH_DECISIONS]);
+  fillSelect("filterResearchPriority", ["All", ...RESEARCH_PRIORITIES]);
+  fillSelect("filterResearchConfidence", ["All", "High", "Medium", "Low", "Insufficient"]);
+  fillSelect("filterResearchHealth", ["All", "Healthy", "Needs Data", "Blocked", "Stale", "Completed", "Warning", "Review Required"]);
   fillSelect("researchPriority", RESEARCH_PRIORITIES);
   fillSelect("researchTemplate", Object.keys(RESEARCH_TEMPLATES));
 }
@@ -293,6 +302,7 @@ function applyResearchTemplate() {
   setInput("researchCategory", template.category || "Other");
   setInput("researchHypothesis", template.hypothesis || "");
   setInput("researchValidationPlan", template.validationPlan || "");
+  setInput("researchCondition", (template.tags || []).join(", "));
   if (!byId("researchTitle")?.value) setInput("researchTitle", template.title || "");
 }
 
@@ -308,6 +318,10 @@ function createResearchFromForm() {
     session: valueOf("researchSession"),
     hypothesis: valueOf("researchHypothesis"),
     validationPlan: valueOf("researchValidationPlan"),
+    requiredData: RESEARCH_TEMPLATES[valueOf("researchTemplate")]?.requiredData || "",
+    successCriteria: RESEARCH_TEMPLATES[valueOf("researchTemplate")]?.successCriteria || "",
+    failureCriteria: RESEARCH_TEMPLATES[valueOf("researchTemplate")]?.failureCriteria || "",
+    tags: normalizeTags(valueOf("researchCondition")),
     sourceAnalyzerSnapshot: analyzerSnapshot()
   });
   setInput("researchTitle", "");
@@ -323,9 +337,13 @@ function renderResearchManager() {
     status: valueOf("filterResearchStatus") || "All",
     category: valueOf("filterResearchCategory") || "All",
     decision: valueOf("filterResearchDecision") || "All",
+    priority: valueOf("filterResearchPriority") || "All",
+    confidence: valueOf("filterResearchConfidence") || "All",
+    health: valueOf("filterResearchHealth") || "All",
     search: valueOf("researchSearch")
   });
-  setHtml("researchList", rows.length ? `<table><thead><tr><th>Title</th><th>Status</th><th>Priority</th><th>Score</th><th>Health</th><th>Next Action</th><th>Open</th></tr></thead><tbody>${rows.map((item) => `<tr><td>${escapeHtml(item.title)}</td><td>${escapeHtml(item.status)}</td><td>${escapeHtml(item.priority)}</td><td>${escapeHtml(item.researchScore)}</td><td>${escapeHtml(researchHealth(item))}</td><td>${escapeHtml(nextAction(item))}</td><td><button class="mini-button open-research" data-id="${escapeHtml(item.id)}">Open</button></td></tr>`).join("")}</tbody></table>` : `<div class="empty">No research items yet. Add a candidate from Research Intelligence or create one manually.</div>`);
+  const message = researchManager.lastMessage ? `<div class="empty">${escapeHtml(researchManager.lastMessage)}</div>` : "";
+  setHtml("researchList", `${message}${rows.length ? `<table><thead><tr><th>Title</th><th>Status</th><th>Priority</th><th>Score</th><th>Confidence</th><th>Progress</th><th>Health</th><th>Next Action</th><th>Open</th></tr></thead><tbody>${rows.map((item) => `<tr><td>${escapeHtml(item.title)}</td><td>${escapeHtml(item.status)}</td><td>${escapeHtml(item.priority)}</td><td>${escapeHtml(item.researchScore)}</td><td>${escapeHtml(item.confidence)}</td><td>${researchProgress(item)}%</td><td>${escapeHtml(researchHealth(item))}</td><td>${escapeHtml(nextAction(item))}</td><td><button class="mini-button open-research" data-id="${escapeHtml(item.id)}">Open</button></td></tr>`).join("")}</tbody></table>` : `<div class="empty">No research items yet. Add a candidate from Research Intelligence or create one manually.</div>`}`);
   document.querySelectorAll(".open-research").forEach((button) => button.addEventListener("click", () => {
     researchManager.selectedId = button.dataset.id;
     renderResearchDetail();
@@ -340,15 +358,28 @@ function renderResearchDetail() {
     return;
   }
   setHtml("researchDetail", `
-    <h3>${escapeHtml(item.title)}</h3>
-    <p><span class="tag">${escapeHtml(item.category)}</span> <span class="tag">${escapeHtml(item.status)}</span> <span class="tag">${escapeHtml(item.priority)}</span> <span class="tag">${escapeHtml(item.decision)}</span></p>
+    <label>Title<input id="detailTitle" type="text" value="${escapeHtml(item.title)}"></label>
+    <div class="form-grid compact">
+      <label>Category<select id="detailCategory">${RESEARCH_CATEGORIES.map((x) => `<option value="${escapeHtml(x)}" ${x === item.category ? "selected" : ""}>${escapeHtml(x)}</option>`).join("")}</select></label>
+      <label>Status<select id="detailStatus">${RESEARCH_STATUSES.map((x) => `<option value="${escapeHtml(x)}" ${x === item.status ? "selected" : ""}>${escapeHtml(x)}</option>`).join("")}</select></label>
+      <label>Priority<select id="detailPriority">${RESEARCH_PRIORITIES.map((x) => `<option value="${escapeHtml(x)}" ${x === item.priority ? "selected" : ""}>${escapeHtml(x)}</option>`).join("")}</select></label>
+      <label>Decision<select id="detailDecision">${RESEARCH_DECISIONS.map((x) => `<option value="${escapeHtml(x)}" ${x === item.decision ? "selected" : ""}>${escapeHtml(x)}</option>`).join("")}</select></label>
+    </div>
     <div class="metric-grid">${metrics([["Progress", `${researchProgress(item)}%`], ["Health", researchHealth(item)], ["Score", item.researchScore], ["Confidence", item.confidence]])}</div>
+    <div class="form-grid compact">
+      <label>Engine<input id="detailEngine" type="text" value="${escapeHtml(item.engine)}"></label>
+      <label>Condition<input id="detailCondition" type="text" value="${escapeHtml(item.condition)}"></label>
+      <label>Session<input id="detailSession" type="text" value="${escapeHtml(item.session)}"></label>
+      <label>Tags<input id="detailTags" type="text" value="${escapeHtml((item.tags || []).join(", "))}"></label>
+    </div>
     <h4>Hypothesis</h4><textarea id="detailHypothesis">${escapeHtml(item.hypothesis)}</textarea>
+    <h4>Reason</h4><textarea id="detailReason">${escapeHtml(item.reason)}</textarea>
+    <h4>Required Data</h4><textarea id="detailRequiredData">${escapeHtml(item.requiredData)}</textarea>
     <h4>Validation Plan</h4><textarea id="detailValidation">${escapeHtml(item.validationPlan)}</textarea>
     <h4>Success Criteria</h4><textarea id="detailSuccess">${escapeHtml(item.successCriteria)}</textarea>
     <h4>Failure Criteria</h4><textarea id="detailFailure">${escapeHtml(item.failureCriteria)}</textarea>
     <h4>Result Summary</h4><textarea id="detailResult">${escapeHtml(item.resultSummary)}</textarea>
-    <p><strong>Required Data:</strong> ${escapeHtml(item.requiredData || "-")}</p>
+    <h4>Next Action Override</h4><textarea id="detailNextAction">${escapeHtml(item.nextAction)}</textarea>
     <p><strong>Next Action:</strong> ${escapeHtml(nextAction(item))}</p>
     <div class="button-row">
       <button class="mini-button" id="saveResearchDetail">Save Detail</button>
@@ -359,16 +390,36 @@ function renderResearchDetail() {
       ${RESEARCH_DECISIONS.filter((d) => d !== "Undecided").map((decision) => `<button class="mini-button decision-button" data-decision="${escapeHtml(decision)}">${escapeHtml(decision)}</button>`).join("")}
     </div>
     <h4>Evidence</h4>
-    ${table(["At", "Note"], (item.evidence || []).map((e) => [new Date(e.at).toLocaleString(), e.note]))}
+    ${table(["Date", "Type", "Title", "Value", "Note", "Source"], (item.evidence || []).map((e) => [e.date || "-", e.type || "-", e.title || "-", e.value || "-", e.note || "-", e.source || "-"]))}
+    <h4>Decision Log</h4>
+    ${table(["Date", "Decision", "Reason", "User Note"], (item.decisionLog || []).map((d) => [new Date(d.date).toLocaleString(), d.decision, d.reason, d.userNote]))}
+    <h4>History</h4>
+    ${table(["At", "Type", "Note"], (item.history || []).slice(-12).reverse().map((h) => [new Date(h.at).toLocaleString(), h.type, h.note || "-"]))}
   `);
   on("saveResearchDetail", "click", () => {
+    const previousDecision = item.decision;
     researchManager.update(item.id, {
+      title: valueOf("detailTitle"),
+      category: valueOf("detailCategory"),
+      status: valueOf("detailStatus"),
+      priority: valueOf("detailPriority"),
+      decision: valueOf("detailDecision"),
+      engine: valueOf("detailEngine"),
+      condition: valueOf("detailCondition"),
+      session: valueOf("detailSession"),
+      tags: normalizeTags(valueOf("detailTags")),
       hypothesis: valueOf("detailHypothesis"),
+      reason: valueOf("detailReason"),
+      requiredData: valueOf("detailRequiredData"),
       validationPlan: valueOf("detailValidation"),
       successCriteria: valueOf("detailSuccess"),
       failureCriteria: valueOf("detailFailure"),
-      resultSummary: valueOf("detailResult")
+      resultSummary: valueOf("detailResult"),
+      nextAction: valueOf("detailNextAction")
     });
+    if (previousDecision !== valueOf("detailDecision")) {
+      researchManager.setDecision(item.id, valueOf("detailDecision"), valueOf("detailResult"), "Changed from detail editor.", analyzerSnapshot());
+    }
     renderResearchManager();
     renderResearchBoard();
     renderPortfolio();
@@ -376,7 +427,13 @@ function renderResearchDetail() {
   on("addResearchEvidence", "click", () => {
     const note = window.prompt("Evidence note");
     if (!note) return;
-    researchManager.addEvidence(item.id, note);
+    researchManager.addEvidence(item.id, {
+      type: "Memo",
+      title: "Manual Evidence",
+      note,
+      source: "Manual",
+      snapshotId: analyzerSnapshot().datetime
+    });
     renderResearchManager();
     renderResearchBoard();
     renderPortfolio();
@@ -392,7 +449,7 @@ function renderResearchDetail() {
 
 function renderResearchBoard() {
   if (!byId("researchBoardView")) return;
-  const boardStatuses = ["Backlog", "Hypothesis", "Ready", "Collecting Data", "Testing", "Review", "Completed"];
+  const boardStatuses = RESEARCH_STATUSES;
   setHtml("researchBoardView", boardStatuses.map((status) => {
     const items = researchManager.items.filter((item) => item.status === status);
     return `<div class="board-column"><h4>${escapeHtml(status)} <span>${items.length}</span></h4>${items.map(researchCard).join("") || `<div class="empty">No items.</div>`}</div>`;
@@ -412,19 +469,65 @@ function researchCard(item) {
     Ready: "Collecting Data",
     "Collecting Data": "Testing",
     Testing: "Review",
-    Review: "Completed"
+    Review: "Completed",
+    Completed: "Revalidation",
+    "On Hold": "Ready",
+    Revalidation: "Testing"
   }[item.status];
-  return `<div class="research-card"><strong>${escapeHtml(item.title)}</strong><p>${escapeHtml(item.engine || item.condition || item.session || item.category)}</p><p>${escapeHtml(item.researchScore)} / ${escapeHtml(item.priority)}</p>${next ? `<button class="mini-button move-research" data-id="${escapeHtml(item.id)}" data-status="${escapeHtml(next)}">Move to ${escapeHtml(next)}</button>` : ""}</div>`;
+  return `<div class="research-card"><strong>${escapeHtml(item.title)}</strong><p>${escapeHtml(item.engine || item.condition || item.session || item.category)}</p><p>${escapeHtml(item.category)} / ${escapeHtml(item.priority)}</p><p>${escapeHtml(item.researchScore)} / ${escapeHtml(item.confidence)} / ${researchProgress(item)}%</p><p>${escapeHtml(researchHealth(item))}</p><p>${escapeHtml(nextAction(item))}</p><p>Updated: ${escapeHtml(new Date(item.updatedAt).toLocaleString())}</p>${next ? `<button class="mini-button move-research" data-id="${escapeHtml(item.id)}" data-status="${escapeHtml(next)}">Move to ${escapeHtml(next)}</button>` : ""}</div>`;
 }
 
 function renderPortfolio() {
   if (!byId("portfolioMetrics")) return;
   const p = researchManager.portfolio();
-  setHtml("portfolioMetrics", metrics([["Total", p.total], ["Adopted", p.adopted], ["Rejected", p.rejected], ["On Hold", p.onHold], ["Stale", p.stale], ["Critical", p.critical]]));
+  setHtml("portfolioMetrics", metrics([["Total", p.total], ["Adopted", p.adopted], ["Rejected", p.rejected], ["On Hold", p.onHold], ["Stale", p.stale], ["Critical", p.critical], ["Avg Score", p.averageScore], ["Avg Confidence", p.averageConfidence], ["Avg Progress", `${p.averageProgress}%`], ["Warning", p.warning], ["Review Required", p.reviewRequired]]));
   setHtml("priorityMatrix", priorityMatrixHtml());
   const rec = researchManager.recommended();
   setHtml("nextResearchRecommendation", rec ? `<div class="suggestion"><div class="stars">${escapeHtml(rec.researchScore)}</div><div><h4>${escapeHtml(rec.title)}</h4><p>${escapeHtml(nextAction(rec))}</p><p><span class="tag">${escapeHtml(rec.priority)}</span> <span class="tag">${escapeHtml(rec.confidence)}</span></p></div></div>` : `<div class="empty">No active research recommendation.</div>`);
   setHtml("staleResearchTable", table(["Title", "Status", "Updated", "Next Action"], researchManager.stale().map((item) => [item.title, item.status, new Date(item.updatedAt).toLocaleString(), nextAction(item)])));
+}
+
+function renderBrain() {
+  if (!byId("brainOverview")) return;
+  const brain = new BrainEngine({ researchManager, analysisEngine: engine });
+  const data = brain.snapshot();
+  setHtml("brainOverview", `<span class="pill">AI Research Brain</span><h3>Next Research is selected from workflow quality, evidence, confidence, progress, and risk.</h3><p>${escapeHtml(data.insights[0] || "Load CSV and create Research items to activate Brain.")}</p>`);
+  setHtml("brainOverviewMetrics", metrics([
+    ["In Progress", data.overview.inProgress],
+    ["Protected", data.overview.protected],
+    ["Adopted", data.overview.adopted],
+    ["Rejected", data.overview.rejected],
+    ["Stale", data.overview.stale],
+    ["Critical", data.overview.critical],
+    ["Total", data.overview.total]
+  ]));
+  setHtml("brainRecommendations", data.recommendations.length ? data.recommendations.map((rec, index) => `<div class="suggestion"><div class="stars">${index + 1}</div><div><h4>${escapeHtml(rec.item.title)}</h4><p><span class="tag">${escapeHtml(rec.item.engine || rec.item.category)}</span> <span class="tag">${escapeHtml(rec.item.priority)}</span> <span class="tag">${escapeHtml(rec.item.researchScore)}</span></p><p>${escapeHtml(rec.reasons.join(" / "))}</p><p>Brain Score: ${rec.score}</p></div></div>`).join("") : `<div class="empty">No active Research recommendations.</div>`);
+  setHtml("brainBottlenecks", table(["Bottleneck", "Count"], data.bottlenecks.map((x) => [x.name, x.count])));
+  setHtml("brainRequiredData", table(["Required Data", "Research Count", "Missing", "Collection Rate"], data.requiredData.map((x) => [x.csv, x.count, x.missing, `${x.collectionRate}%`])));
+  setHtml("brainPriorityRanking", table(["Rank", "Title", "Status", "Priority", "Quality", "Progress", "Health", "Advisor"], data.priorityRanking.slice(0, 20).map((x, i) => [i + 1, x.item.title, x.item.status, x.item.priority, x.qualityScore, `${researchProgress(x.item)}%`, researchHealth(x.item), x.advisor])));
+  setHtml("brainRoadmap", table(["Status", "Count"], data.roadmap.map((x) => [x.status, x.count])));
+  drawMultiLine("brainTimelineChart", data.timeline.map((x) => x.date), [
+    { label: "Research", data: data.timeline.map((x) => x.research) },
+    { label: "Evidence", data: data.timeline.map((x) => x.evidence) },
+    { label: "Decision", data: data.timeline.map((x) => x.decisions) },
+    { label: "Adopt", data: data.timeline.map((x) => x.adopted) }
+  ]);
+  setHtml("brainStatistics", metrics([
+    ["Avg Duration", `${round(data.statistics.averageDuration)} days`],
+    ["Avg Evidence", round(data.statistics.averageEvidence)],
+    ["Avg Progress", `${round(data.statistics.averageProgress)}%`],
+    ["Avg Research Score", round(data.statistics.averageResearchScore)],
+    ["Avg Confidence", round(data.statistics.averageConfidence)],
+    ["Avg Decision Time", `${round(data.statistics.averageDecisionTime)} days`]
+  ]));
+  setHtml("brainRisks", table(["Research", "Risks"], data.risks.slice(0, 20).map((x) => [x.item.title, x.risks.join(" / ")])));
+  setHtml("brainKnowledge", table(["Title", "Decision", "Conclusion", "Tags"], data.knowledge.slice(0, 20).map((x) => [x.title, x.decision, x.conclusion, (x.tags || []).join(", ")])));
+  setHtml("brainClusters", `<h4>Category</h4>${table(["Cluster", "Count", "Completed", "Avg Progress"], data.clusters.category.map((x) => [x.name, x.count, x.completed, `${x.averageProgress}%`]))}<h4>Engine</h4>${table(["Cluster", "Count", "Completed", "Avg Progress"], data.clusters.engine.map((x) => [x.name, x.count, x.completed, `${x.averageProgress}%`]))}`);
+  setHtml("brainInsights", `<div class="warning-list">${data.insights.map((line) => `<div>${escapeHtml(line)}</div>`).join("")}</div>`);
+  setHtml("brainSummary", table(["Period", "Added", "Completed", "Evidence", "Decisions"], [
+    ["Weekly", data.weekly.added, data.weekly.completed, data.weekly.evidence, data.weekly.decisions],
+    ["Monthly", data.monthly.added, data.monthly.completed, data.monthly.evidence, data.monthly.decisions]
+  ]));
 }
 
 function priorityMatrixHtml() {
@@ -448,13 +551,12 @@ async function importResearchManager(event) {
   const file = event.target.files?.[0];
   if (!file) return;
   const text = await file.text();
-  const result = ResearchStorage.importBundle(text);
+  const result = researchManager.importBundle(text);
   if (!result.ok) {
     window.alert(result.error);
     return;
   }
-  researchManager.items = result.items;
-  researchManager.selectedId = result.items[0]?.id || "";
+  if (result.warnings?.length) window.alert(`Import completed with warnings:\n${result.warnings.slice(0, 8).join("\n")}`);
   renderResearchManager();
   renderResearchBoard();
   renderPortfolio();
@@ -464,14 +566,21 @@ function analyzerSnapshot() {
   return {
     datetime: new Date().toISOString(),
     files: Array.from(engine.files.keys()),
-    dashboard: engine.results.dashboard,
-    topIntelligence: engine.results.intelligence.slice(0, 5),
+    dataset: engine.results.datasetSummary || null,
+    trade: engine.results.dashboard || null,
+    nearMiss: engine.results.nearMiss || null,
     topNg: engine.results.nearMiss.ngReasons?.slice(0, 10) || [],
-    dataset: engine.results.datasetSummary || null
+    engine: engine.results.engineActivity?.slice(0, 10) || [],
+    session: engine.results.session || [],
+    research: engine.results.intelligence?.slice(0, 10) || [],
+    validation: engine.results.warnings || [],
+    csvTypes: Array.from(engine.files.keys())
   };
 }
 
 function researchItemMarkdown(item) {
+  const before = item.beforeSnapshot || item.sourceAnalyzerSnapshot || {};
+  const after = item.afterSnapshot || {};
   return [
     `# ${item.title}`,
     "",
@@ -480,10 +589,22 @@ function researchItemMarkdown(item) {
     `- Priority: ${item.priority}`,
     `- Research Score: ${item.researchScore}`,
     `- Confidence: ${item.confidence}`,
+    `- Progress: ${researchProgress(item)}%`,
+    `- Health: ${researchHealth(item)}`,
     `- Decision: ${item.decision}`,
+    `- Engine: ${item.engine || "-"}`,
+    `- Condition: ${item.condition || "-"}`,
+    `- Session: ${item.session || "-"}`,
+    `- Tags: ${(item.tags || []).join(", ") || "-"}`,
     "",
     "## Hypothesis",
     item.hypothesis || "-",
+    "",
+    "## Reason",
+    item.reason || "-",
+    "",
+    "## Required Data",
+    item.requiredData || "-",
     "",
     "## Validation Plan",
     item.validationPlan || "-",
@@ -494,8 +615,27 @@ function researchItemMarkdown(item) {
     "## Failure Criteria",
     item.failureCriteria || "-",
     "",
+    "## Progress",
+    `- Progress: ${researchProgress(item)}%`,
+    `- Health: ${researchHealth(item)}`,
+    `- Next Action: ${nextAction(item)}`,
+    "",
     "## Evidence",
-    ...(item.evidence?.length ? item.evidence.map((e) => `- ${e.at}: ${e.note}`) : ["- No evidence yet."]),
+    ...(item.evidence?.length ? item.evidence.map((e) => `- ${e.createdAt || e.date}: [${e.type}] ${e.title} / ${e.value || "-"} / ${e.note || "-"}`) : ["- No evidence yet."]),
+    "",
+    "## Decision Log",
+    ...(item.decisionLog?.length ? item.decisionLog.map((d) => `- ${d.date}: ${d.decision} / ${d.reason || "-"} / ${d.userNote || "-"}`) : ["- No decision log yet."]),
+    "",
+    "## History",
+    ...(item.history?.length ? item.history.map((h) => `- ${h.at}: ${h.type} / ${h.note || "-"}`) : ["- No history yet."]),
+    "",
+    "## Before / After Snapshot",
+    `- Before Trade Count: ${before.trade?.totalTrades ?? before.dashboard?.totalTrades ?? "-"}`,
+    `- After Trade Count: ${after.trade?.totalTrades ?? after.dashboard?.totalTrades ?? "-"}`,
+    `- Before NearMiss: ${before.nearMiss?.total ?? "-"}`,
+    `- After NearMiss: ${after.nearMiss?.total ?? "-"}`,
+    `- Before CSV Types: ${(before.csvTypes || before.files || []).join(", ") || "-"}`,
+    `- After CSV Types: ${(after.csvTypes || after.files || []).join(", ") || "-"}`,
     "",
     "## Result Summary",
     item.resultSummary || "-",

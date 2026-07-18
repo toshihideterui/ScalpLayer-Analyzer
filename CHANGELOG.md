@@ -1,5 +1,88 @@
 # CHANGELOG
 
+## v4.0 AI Research Brain Edition
+
+### Added
+
+- AI Research Brain tab
+- Research Overview
+- Today's Research Top5
+- Research Priority Ranking
+- Research Dependency view
+- Research Roadmap
+- Research Timeline 2.0
+- Research Quality Statistics
+- Research Bottleneck detection
+- Required Data Forecast
+- Research Queue
+- Research Risk
+- Knowledge Base
+- Knowledge Search foundation
+- Similar Research scoring
+- Research Cluster view
+- Duplicate Knowledge detection
+- Research Quality Score
+- Weekly Summary
+- Monthly Summary
+- `recommendationEngine.js`
+- `knowledgeEngine.js`
+- `brainEngine.js`
+- `AI_RESEARCH_BRAIN_SPECIFICATION.md`
+
+### Design
+
+- ScalpLayer now has a three-layer structure:
+  - Analyzer
+  - Research Manager
+  - AI Research Brain
+- AI Research Brain is rule-based and does not use external AI APIs.
+- Recommendations are Research candidates, not trading-condition changes.
+
+### Not Changed
+
+- No EA code changes
+- No CSV rewriting
+- No trading-condition changes
+- No profit guarantee
+- No AI API calls
+
+## v3.2.1 Integration & Reliability Edition
+
+### Fixed
+
+- Unified Research Manager import/export result format
+- Improved broken JSON handling during import
+- Added import validation for version, schema, duplicate IDs and unknown fields
+- Unified Evidence structure
+- Added Decision Log persistence
+- Expanded Research History event types
+- Improved Research Template field application
+- Added duplicate detection when adding Research Intelligence candidates
+- Expanded Research Board to all statuses
+- Improved Research Card content
+- Improved Research Progress calculation
+- Added Warning and Review Required health states
+- Improved Analyzer Snapshot content
+- Improved Markdown export completeness
+- Improved JSON backup completeness
+- Added localStorage error reporting to Research Manager UI
+
+### Reliability
+
+- Import now returns `{ ok, items, warnings, version, duplicates }`
+- Import failure now returns `{ ok:false, error }`
+- Duplicate IDs are merged by `updatedAt`
+- Existing records are preserved when imported records are older
+- Analyzer no longer stops when Research Manager storage has an error
+
+### Not Changed
+
+- No EA code changes
+- No CSV rewriting
+- No trading-condition changes
+- No profit guarantee
+- No external AI API calls
+
 ## v3.2 Research Workflow & AI Research Manager Edition
 
 ### Added
