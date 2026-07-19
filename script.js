@@ -1,6 +1,23 @@
 const engine = new AnalysisEngine();
 let charts = {};
 const virtualTableState = {};
+const PRODUCTIVITY_VERSION = "6.1";
+const DASHBOARD_CARD_CONFIG_KEY = "scalplayer_dashboard_cards_v61";
+const FAVORITE_ENGINE_KEY = "scalplayer_favorite_engine_v61";
+const SEARCH_QUERY_KEY = "scalplayer_fast_search_query_v61";
+const DEFAULT_DASHBOARD_CARDS = [
+  { id: "labDashboard", label: "Research Lab Summary", visible: true },
+  { id: "workspaceDashboard", label: "Workspace Summary", visible: true },
+  { id: "strategyDashboard", label: "Research Strategy Summary", visible: true },
+  { id: "hypothesisDashboard", label: "Hypothesis Summary", visible: true },
+  { id: "lineageDashboard", label: "Hypothesis Lineage Summary", visible: true },
+  { id: "engineDnaDashboard", label: "Engine DNA Summary", visible: true },
+  { id: "knowledgeGraphDashboard", label: "Knowledge Graph Summary", visible: true },
+  { id: "trendDashboard", label: "Research Trend", visible: true },
+  { id: "analysisWarnings", label: "Analysis Warnings", visible: true },
+  { id: "performancePanel", label: "Performance Panel", visible: true },
+  { id: "progressPanel", label: "Research Progress", visible: true }
+];
 
 document.addEventListener("DOMContentLoaded", () => {
   setupTabs();
@@ -67,6 +84,16 @@ function setupButtons() {
   on("promptButton", "click", () => { activateTab("intelligence"); byId("chatgptPrompt")?.select(); });
   on("downloadHistoryButton", "click", downloadHistory);
   on("downloadReportButton", "click", downloadMarkdownReport);
+  on("exportAllButton", "click", exportAllResearch);
+  on("globalSearchInput", "input", (event) => {
+    localStorage.setItem(SEARCH_QUERY_KEY, event.target.value || "");
+    renderSearch();
+  });
+  on("clearSearchButton", "click", () => {
+    localStorage.removeItem(SEARCH_QUERY_KEY);
+    if (byId("globalSearchInput")) byId("globalSearchInput").value = "";
+    renderSearch();
+  });
   on("saveMemoButton", "click", () => {
     saveMemo(byId("researchMemo")?.value || "");
     setText("memoStatus", "Saved");
@@ -110,6 +137,24 @@ function setupButtons() {
         targetId: pin.dataset.targetId || pin.dataset.id
       });
       renderWorkspace();
+      renderDashboard();
+      return;
+    }
+    const favorite = event.target.closest(".favorite-engine-button");
+    if (favorite) {
+      setFavoriteEngine(favorite.dataset.engine || "");
+      renderDashboard();
+      return;
+    }
+    const cardToggle = event.target.closest(".dashboard-card-toggle");
+    if (cardToggle) {
+      updateDashboardCard(cardToggle.dataset.cardId, { visible: cardToggle.checked });
+      renderDashboard();
+      return;
+    }
+    const move = event.target.closest(".dashboard-card-move");
+    if (move) {
+      moveDashboardCard(move.dataset.cardId, move.dataset.direction);
       renderDashboard();
     }
   });
@@ -168,6 +213,8 @@ function renderActiveTab() {
     workspace: renderWorkspace,
     hypothesis: renderHypothesis,
     lineage: renderLineage,
+    strategy: renderStrategy,
+    search: renderSearch,
     brain: renderBrain,
     knowledgeGraph: renderKnowledgeGraph,
     timeline: renderTimeline
@@ -198,6 +245,8 @@ function renderDashboard() {
   if (lineage) engine.results.hypothesisLineage = lineage;
   const workspace = engine.results.workspace || (typeof ResearchWorkspaceEngine !== "undefined" ? new ResearchWorkspaceEngine({ analysisEngine: engine, researchManager }).snapshot() : null);
   if (workspace) engine.results.workspace = workspace;
+  const strategy = engine.results.researchStrategy || (typeof ResearchStrategyEngine !== "undefined" ? new ResearchStrategyEngine({ analysisEngine: engine, researchManager }).snapshot() : null);
+  if (strategy) engine.results.researchStrategy = strategy;
   setHtml("labDashboard", [
     researchItem("Best Engine", bestEngine, "Highest current trade performance"),
     researchItem("Most Active Engine", mostActive, "Highest research score from activity"),
@@ -241,6 +290,16 @@ function renderDashboard() {
     ["Top Score 2.0", `${lineage.hypothesisLineageSummary.topScore2}/100`],
     ["Top Confidence", `${lineage.hypothesisLineageSummary.topConfidencePercent}%`]
   ])}` : `<h3>Hypothesis Lineage Summary</h3><p class="empty">Hypothesis Lineage module is not loaded.</p>`);
+  setHtml("strategyDashboard", strategy ? `<h3>Research Strategy Summary</h3>${metrics([
+    ["Current Best Research", strategy.strategySummary.currentBestResearch],
+    ["Highest ROI", strategy.strategySummary.highestROI],
+    ["Highest Impact", strategy.strategySummary.highestImpact],
+    ["Lowest Cost", strategy.strategySummary.lowestCost],
+    ["Current Blocker", strategy.strategySummary.currentBlocker],
+    ["Coverage", strategy.strategySummary.coverage],
+    ["Roadmap", strategy.strategySummary.roadmap],
+    ["Quick Win", strategy.strategySummary.quickWin]
+  ])}<p>${escapeHtml(strategy.strategySummary.summary)}</p>` : `<h3>Research Strategy Summary</h3><p class="empty">Research Strategy module is not loaded.</p>`);
   const trend = new TrendEngine({ analysisEngine: engine, researchManager }).snapshot();
   engine.results.trend = trend;
   setHtml("trendDashboard", `<h3>Research Trend</h3>${metrics([
@@ -266,6 +325,177 @@ function renderDashboard() {
   drawBar("engineProfitChart", engine.results.tradeByEngine.map((x) => x.name), engine.results.tradeByEngine.map((x) => round(x.pips)), "Pips");
   setHtml("engineProfitRanking", table(["Engine", "Trades", "WinRate", "Pips", "Avg"], engine.results.tradeByEngine.slice(0, 10).map((x) => [x.name, x.trades, pct(x.winRate), round(x.pips), round(x.averagePips)])));
   setHtml("timeWeekSummary", timeWeekSummary());
+  renderProductivityPanels();
+  applyDashboardCardLayout();
+}
+
+function renderProductivityPanels() {
+  const favorite = getFavoriteEngine();
+  const engineNames = getEngineNames();
+  const favoriteData = getEngineSummary(favorite);
+  setHtml("productivityBar", productivityBarHtml());
+  setHtml("favoriteEnginePanel", favoriteEngineHtml(engineNames, favorite, favoriteData));
+  setHtml("snapshotComparePanel", snapshotCompareHtml());
+  setHtml("dashboardCustomizePanel", dashboardCustomizeHtml());
+}
+
+function productivityBarHtml() {
+  const history = loadResearchHistory();
+  const comparison = snapshotDiff(history.at(-2), history.at(-1));
+  const strategy = engine.results.researchStrategy;
+  return [
+    `<div class="productivity-card primary"><span>Focus</span><strong>${escapeHtml(strategy?.strategySummary?.currentBestResearch || engine.results.intelligence[0]?.title || "Load CSV")}</strong><p>${escapeHtml(strategy?.strategySummary?.summary || "Research-only productivity layer is ready.")}</p></div>`,
+    `<div class="productivity-card"><span>Last Snapshot</span><strong>${history.length ? formatDate(history.at(-1).datetime) : "No history"}</strong><p>${history.length} snapshots stored locally.</p></div>`,
+    `<div class="productivity-card"><span>Latest Diff</span><strong>${comparison ? signed(comparison.trades) : "0"} Trades</strong><p>NearMiss ${comparison ? signed(comparison.nearMiss) : "0"} / PF ${comparison ? signed(round(comparison.profitFactor)) : "0"}</p></div>`,
+    `<div class="productivity-card"><span>Export</span><strong>MD / JSON / CSV</strong><p>Use Export All for a research package.</p></div>`
+  ].join("");
+}
+
+function getDashboardCards() {
+  let saved = [];
+  try { saved = JSON.parse(localStorage.getItem(DASHBOARD_CARD_CONFIG_KEY) || "[]"); } catch { saved = []; }
+  const bySaved = new Map(saved.map((x) => [x.id, x]));
+  const merged = DEFAULT_DASHBOARD_CARDS.map((card) => ({ ...card, ...(bySaved.get(card.id) || {}) }));
+  const savedIds = new Set(saved.map((x) => x.id));
+  const newCards = DEFAULT_DASHBOARD_CARDS.filter((x) => !savedIds.has(x.id));
+  return saved.length ? [...saved.filter((x) => DEFAULT_DASHBOARD_CARDS.some((d) => d.id === x.id)).map((x) => ({ ...DEFAULT_DASHBOARD_CARDS.find((d) => d.id === x.id), ...x })), ...newCards] : merged;
+}
+
+function saveDashboardCards(cards) {
+  localStorage.setItem(DASHBOARD_CARD_CONFIG_KEY, JSON.stringify(cards));
+}
+
+function updateDashboardCard(id, patch) {
+  saveDashboardCards(getDashboardCards().map((card) => card.id === id ? { ...card, ...patch } : card));
+}
+
+function moveDashboardCard(id, direction) {
+  const cards = getDashboardCards();
+  const index = cards.findIndex((card) => card.id === id);
+  const next = direction === "up" ? index - 1 : index + 1;
+  if (index < 0 || next < 0 || next >= cards.length) return;
+  [cards[index], cards[next]] = [cards[next], cards[index]];
+  saveDashboardCards(cards);
+}
+
+function applyDashboardCardLayout() {
+  const container = byId("dashboardCards");
+  if (!container) return;
+  getDashboardCards().forEach((card) => {
+    const el = byId(card.id);
+    if (!el) return;
+    el.style.display = card.visible ? "" : "none";
+    container.appendChild(el);
+  });
+}
+
+function dashboardCustomizeHtml() {
+  const cards = getDashboardCards();
+  return `<div class="dashboard-customize">${cards.map((card, index) => `<div class="customize-row"><label><input class="dashboard-card-toggle" data-card-id="${escapeHtml(card.id)}" type="checkbox" ${card.visible ? "checked" : ""}> ${escapeHtml(card.label)}</label><div><button class="tiny-button dashboard-card-move" data-card-id="${escapeHtml(card.id)}" data-direction="up" ${index === 0 ? "disabled" : ""}>Up</button> <button class="tiny-button dashboard-card-move" data-card-id="${escapeHtml(card.id)}" data-direction="down" ${index === cards.length - 1 ? "disabled" : ""}>Down</button></div></div>`).join("")}</div>`;
+}
+
+function getEngineNames() {
+  const names = new Set();
+  engine.results.engineActivity.forEach((x) => names.add(x.engine));
+  engine.results.tradeByEngine.forEach((x) => names.add(x.name));
+  (engine.results.engineDna?.profiles || []).forEach((x) => names.add(x.engine));
+  return Array.from(names).filter(Boolean).sort();
+}
+
+function getFavoriteEngine() {
+  return localStorage.getItem(FAVORITE_ENGINE_KEY) || getEngineNames()[0] || "";
+}
+
+function setFavoriteEngine(name) {
+  if (name) localStorage.setItem(FAVORITE_ENGINE_KEY, name);
+}
+
+function getEngineSummary(name) {
+  if (!name) return null;
+  const activity = engine.results.engineActivity.find((x) => x.engine === name);
+  const trade = engine.results.tradeByEngine.find((x) => x.name === name);
+  const dna = engine.results.engineDna?.profiles?.find((x) => x.engine === name);
+  return { activity, trade, dna };
+}
+
+function favoriteEngineHtml(engineNames, favorite, data) {
+  const buttons = engineNames.slice(0, 10).map((name) => `<button class="tiny-button favorite-engine-button ${name === favorite ? "active" : ""}" data-engine="${escapeHtml(name)}">${escapeHtml(name)}</button>`).join(" ");
+  if (!favorite) return `<div class="empty">Load CSV to choose a favorite Engine.</div>`;
+  return `${metrics([
+    ["Favorite", favorite],
+    ["Trades", data?.trade?.trades || 0],
+    ["WinRate", pct(data?.trade?.winRate || 0)],
+    ["Pips", round(data?.trade?.pips || 0)],
+    ["Checks", data?.activity?.checks || 0],
+    ["EntryRate", pct(data?.activity?.entryRate || 0)],
+    ["Health", data?.activity?.health || data?.dna?.stability || "-"],
+    ["TopNG", data?.activity?.topNg?.[0]?.name || data?.dna?.topNg?.[0]?.name || "-"]
+  ])}<div class="favorite-buttons">${buttons || "<span class='empty'>No Engine data.</span>"}</div>`;
+}
+
+function snapshotCompareHtml() {
+  const history = loadResearchHistory();
+  if (history.length < 2) return `<div class="empty">Run Analyzer at least twice to compare snapshots.</div>`;
+  const current = history.at(-1);
+  const previous = history.at(-2);
+  const previousDay = findPreviousDaySnapshot(history);
+  const avg7 = averageSnapshots(history.slice(-7));
+  const rows = [
+    ["Previous", previous],
+    ["Previous Day", previousDay],
+    ["Last 7 Avg", avg7]
+  ].filter((x) => x[1]).map(([label, base]) => snapshotDiffRow(label, base, current));
+  return rawTable(["Compare", "Trades", "NearMiss", "WinRate", "PF", "Quality"], rows);
+}
+
+function snapshotDiffRow(label, base, current) {
+  const diff = snapshotDiff(base, current);
+  return [
+    label,
+    changeBadge(diff.trades, false),
+    changeBadge(diff.nearMiss, true),
+    changeBadge(round(diff.winRate), false, "%"),
+    changeBadge(round(diff.profitFactor), false),
+    changeBadge(round(diff.qualityScore), false)
+  ];
+}
+
+function snapshotDiff(base, current) {
+  return {
+    trades: (current?.trades || 0) - (base?.trades || 0),
+    nearMiss: (current?.nearMiss || 0) - (base?.nearMiss || 0),
+    winRate: (current?.winRate || 0) - (base?.winRate || 0),
+    profitFactor: (current?.profitFactor || 0) - (base?.profitFactor || 0),
+    qualityScore: (current?.qualityScore || 0) - (base?.qualityScore || 0)
+  };
+}
+
+function findPreviousDaySnapshot(history) {
+  const latest = history.at(-1);
+  if (!latest?.datetime) return history.at(-2);
+  const latestDay = new Date(latest.datetime).toDateString();
+  return [...history].reverse().find((x) => x !== latest && x.datetime && new Date(x.datetime).toDateString() !== latestDay) || history.at(-2);
+}
+
+function averageSnapshots(items) {
+  if (!items.length) return null;
+  return {
+    trades: avgPlain(items, "trades"),
+    nearMiss: avgPlain(items, "nearMiss"),
+    winRate: avgPlain(items, "winRate"),
+    profitFactor: avgPlain(items, "profitFactor"),
+    qualityScore: avgPlain(items, "qualityScore")
+  };
+}
+
+function avgPlain(items, key) {
+  return items.reduce((acc, item) => acc + (Number(item?.[key]) || 0), 0) / items.length;
+}
+
+function changeBadge(value, lowerIsGood = false, suffix = "") {
+  const n = Number(value) || 0;
+  const cls = n === 0 ? "flat" : ((n > 0) !== lowerIsGood ? "good" : "bad");
+  return `<span class="change ${cls}">${escapeHtml(`${signed(round(n))}${suffix}`)}</span>`;
 }
 
 function renderEngineDna() {
@@ -622,9 +852,96 @@ function bindLineageEvents() {
 function invalidateLineageCache() {
   if (engine._snapshotCache) delete engine._snapshotCache.hypothesisLineage;
   if (engine._snapshotCache) delete engine._snapshotCache.knowledgeGraph;
+  if (engine._snapshotCache) delete engine._snapshotCache.researchStrategy;
   engine.results.hypothesisLineage = null;
   engine.results.knowledgeGraph = null;
   engine.results.workspace = null;
+  engine.results.researchStrategy = null;
+}
+
+function renderStrategy() {
+  if (!byId("strategyOverview")) return;
+  if (typeof ResearchStrategyEngine === "undefined") {
+    setHtml("strategyOverview", `<span class="pill">Research Strategy</span><h3>Research Strategy module is not loaded.</h3>`);
+    return;
+  }
+  const snapshot = new ResearchStrategyEngine({ analysisEngine: engine, researchManager }).snapshot();
+  engine.results.researchStrategy = snapshot;
+  const s = snapshot.strategySummary;
+  setHtml("strategyOverview", `<span class="pill">Research Strategy Engine</span><h3>${escapeHtml(s.currentBestResearch || "No Research Strategy yet.")}</h3><p>${escapeHtml(s.summary)}</p><p>This is Research priority, not trading priority. It never rewrites EA, CSV, or trading conditions.</p>`);
+  setHtml("strategyMetrics", metrics([
+    ["Candidates", snapshot.researchStrategy.length],
+    ["Highest ROI", s.highestROI],
+    ["Highest Impact", s.highestImpact],
+    ["Lowest Cost", s.lowestCost],
+    ["Current Blocker", s.currentBlocker],
+    ["Coverage", s.coverage],
+    ["Blockers", s.blockerCount],
+    ["Roadmap Progress", `${s.roadmapProgress}%`]
+  ]));
+  setHtml("strategyPriorityMatrix", table(["Priority", "Count", "Top Items"], snapshot.priorityMatrix.map((x) => [x.priority, x.count, x.items.slice(0, 3).map((i) => i.title).join(" / ") || "-"])));
+  setHtml("strategyRoiTable", table(["Research", "Priority", "ROI", "Value", "Cost", "Risk", "Target", "Reason"], snapshot.researchROI.slice(0, 20).map((x) => [x.title, x.priority, x.researchROI, x.expectedResearchValue, x.researchCost, x.researchRisk, x.target, x.reason])));
+  setHtml("strategyCoverage", table(["Area", "Base", "Researched", "Coverage", "Status"], snapshot.coverage.map((x) => [x.area, x.baseCount, x.researchedCount, `${x.coveragePercent}%`, x.status])));
+  setHtml("strategyBlockers", snapshot.blockers.length ? table(["Blocker", "Count"], snapshot.blockers.map((x) => [x.name, x.count])) : `<div class="empty">No blockers detected.</div>`);
+  setHtml("strategyQuickWin", strategyCardList(snapshot.quickWin));
+  setHtml("strategyLongProject", strategyCardList(snapshot.longProject));
+  setHtml("strategyRoadmap", table(["Step", "Research", "Priority", "ROI", "Action", "Blocker"], snapshot.roadmap.map((x) => [x.step, x.title, x.priority, x.roi, x.action, x.blocker])));
+  setHtml("strategyDuplicate", snapshot.duplicateResearch.length ? table(["Research A", "Research B", "Similarity", "Note"], snapshot.duplicateResearch.map((x) => [x.source, x.target, `${x.similarity}%`, x.note])) : `<div class="empty">No duplicate Research detected.</div>`);
+  setHtml("strategyMissing", snapshot.missingResearch.length ? table(["Area", "Coverage", "Status", "Reason"], snapshot.missingResearch.map((x) => [x.area, `${x.coveragePercent}%`, x.status, x.reason])) : `<div class="empty">No missing Research area detected.</div>`);
+  setHtml("strategyDependencies", table(["Research", "Required Before", "Blockers", "Relation"], snapshot.dependencyAnalyzer.slice(0, 30).map((x) => [x.research, x.requiredBefore, x.blockers, x.relation])));
+  setHtml("strategyHeatmap", researchHeatmapHtml(snapshot.researchHeatMap));
+}
+
+function strategyCardList(items) {
+  if (!items?.length) return `<div class="empty">No items.</div>`;
+  return `<div class="workspace-list">${items.slice(0, 10).map((x, index) => `<div class="workspace-item"><div class="workspace-rank">${index + 1}</div><div><h4>${escapeHtml(x.title)}</h4><p><span class="tag">${escapeHtml(x.priority)}</span> <span class="tag">ROI ${escapeHtml(x.researchROI)}</span> <span class="tag">${escapeHtml(x.researchCost)}</span> <span class="tag">Risk ${escapeHtml(x.researchRisk)}</span></p><p>${escapeHtml(x.reason)}</p></div></div>`).join("")}</div>`;
+}
+
+function researchHeatmapHtml(rows) {
+  if (!rows?.length) return `<div class="empty">No heatmap data.</div>`;
+  const max = Math.max(1, ...rows.map((x) => x.coveragePercent || 0));
+  return `<table class="heatmap"><thead><tr><th>Area</th><th>Coverage</th><th>State</th></tr></thead><tbody>${rows.map((x) => {
+    const alpha = Math.max(.12, (x.coveragePercent || 0) / max * .75);
+    return `<tr><td>${escapeHtml(x.area)}</td><td style="background: rgba(57, 216, 255, ${alpha})">${escapeHtml(`${x.coveragePercent}%`)}</td><td>${escapeHtml(x.state)}</td></tr>`;
+  }).join("")}</tbody></table>`;
+}
+
+function renderSearch() {
+  if (!byId("globalSearchResults")) return;
+  const input = byId("globalSearchInput");
+  const stored = localStorage.getItem(SEARCH_QUERY_KEY) || "";
+  if (input && input.value !== stored) input.value = stored;
+  const query = (input?.value || stored || "").trim();
+  const index = buildSearchIndex();
+  if (!query) {
+    setText("globalSearchStatus", `${index.length} searchable items`);
+    setHtml("globalSearchResults", `<div class="empty">Type a keyword to search Research, Hypothesis, Knowledge Graph, TopNG, and Engine data.</div>`);
+    return;
+  }
+  const tokens = query.toLowerCase().split(/\s+/).filter(Boolean);
+  const rows = index.map((item) => {
+    const haystack = `${item.type} ${item.title} ${item.detail} ${item.tags}`.toLowerCase();
+    const score = tokens.reduce((acc, token) => acc + (haystack.includes(token) ? 1 : 0), 0);
+    return { ...item, score };
+  }).filter((x) => x.score > 0).sort((a, b) => b.score - a.score || a.type.localeCompare(b.type)).slice(0, 50);
+  setText("globalSearchStatus", `${rows.length} results / ${index.length} searchable items`);
+  setHtml("globalSearchResults", rows.length ? table(["Type", "Title", "Detail", "Score"], rows.map((x) => [x.type, x.title, x.detail, x.score])) : `<div class="empty">No result for "${escapeHtml(query)}".</div>`);
+}
+
+function buildSearchIndex() {
+  const rows = [];
+  const add = (type, title, detail = "", tags = "") => rows.push({ type, title: String(title || "-"), detail: String(detail || "-"), tags: String(tags || "") });
+  engine.results.engineActivity.forEach((x) => add("Engine", x.engine, `Health ${x.health} Checks ${x.checks} TimeOK ${x.timeOk} Full ${x.full} Entries ${x.entries}`, (x.topNg || []).map((n) => n.name).join(" ")));
+  engine.results.tradeByEngine.forEach((x) => add("Engine Trade", x.name, `Trades ${x.trades} WinRate ${round(x.winRate)} Pips ${round(x.pips)}`, "trade winrate profit"));
+  (engine.results.nearMiss.ngReasons || []).forEach((x) => add("TopNG", x.name, `Count ${x.count}`, "nearmiss bottleneck"));
+  (engine.results.intelligence || []).forEach((x) => add("Research", x.title, `${x.target} ${x.reason}`, `${x.stars} ${x.score}`));
+  (engine.results.researchStrategy?.researchStrategy || []).forEach((x) => add("Strategy", x.title, `${x.priority} ROI ${x.researchROI} ${x.reason}`, `${x.engine} ${x.condition} ${x.session}`));
+  (researchManager?.items || []).forEach((x) => add("Research Manager", x.title, `${x.status} ${x.priority} ${x.hypothesis || ""}`, `${x.engine || ""} ${x.condition || ""} ${(x.tags || []).join(" ")}`));
+  (engine.results.hypothesis?.hypotheses || []).forEach((x) => add("Hypothesis", x.title, `${x.status} ${x.confidence} ${x.hypothesis}`, `${x.engine || ""} ${x.condition || ""}`));
+  (engine.results.hypothesisLineage?.enrichedHypotheses || []).forEach((x) => add("Lineage", x.title, `Score2 ${x.score2} Confidence ${x.confidencePercent}% Family ${x.family}`, `${x.engine || ""} ${x.condition || ""}`));
+  (engine.results.knowledgeGraph?.nodes || []).forEach((x) => add("KnowledgeGraph", x.label, `${x.type} Degree ${x.degree || 0}`, x.id));
+  (engine.results.engineDna?.profiles || []).forEach((x) => add("Engine DNA", x.engine, `${x.personality} ${x.cluster} ${x.stability} Score ${x.researchScore}`, `${(x.strength || []).join(" ")} ${(x.weakness || []).join(" ")}`));
+  return rows;
 }
 
 function hypothesisCardHtml(h) {
@@ -1164,7 +1481,9 @@ function renderBrain() {
   if (hypothesis) engine.results.hypothesis = hypothesis;
   const lineage = engine.results.hypothesisLineage || (typeof HypothesisLineageEngine !== "undefined" ? new HypothesisLineageEngine({ analysisEngine: engine, researchManager }).snapshot() : null);
   if (lineage) engine.results.hypothesisLineage = lineage;
-  setHtml("brainOverview", `<span class="pill">AI Research Brain</span><h3>Next Research is selected from workflow quality, evidence, confidence, progress, risk, Cross CSV relation, trend, Engine DNA, Knowledge Graph, Workspace, Hypothesis, and Lineage.</h3><p>${escapeHtml(data.insights[0] || "Load CSV and create Research items to activate Brain.")}</p><p><strong>Today's Cross Insight:</strong> ${escapeHtml(cross.recommendations?.[0]?.reason || cross.crossSummary?.status || "Cross CSV data is not loaded yet.")}</p><p><strong>Trend Summary:</strong> ${escapeHtml(trend.trendSummary)}</p><p><strong>Engine DNA Summary:</strong> ${escapeHtml(dna?.summary || "Engine DNA data is not ready yet.")}</p><p><strong>Knowledge Graph Insight:</strong> ${escapeHtml(kg?.insight?.[0] || "Knowledge Graph data is not ready yet.")}</p><p><strong>Hypothesis Summary:</strong> ${escapeHtml(hypothesis?.hypothesisSummary?.topTitle || "Hypothesis data is not ready yet.")}</p><p><strong>Lineage Summary:</strong> ${escapeHtml(lineage?.hypothesisLineageSummary?.largestFamily || "Hypothesis Lineage data is not ready yet.")}</p>`);
+  const strategy = engine.results.researchStrategy || (typeof ResearchStrategyEngine !== "undefined" ? new ResearchStrategyEngine({ analysisEngine: engine, researchManager }).snapshot() : null);
+  if (strategy) engine.results.researchStrategy = strategy;
+  setHtml("brainOverview", `<span class="pill">AI Research Brain</span><h3>Next Research is selected from workflow quality, evidence, confidence, progress, risk, Cross CSV relation, trend, Engine DNA, Knowledge Graph, Workspace, Hypothesis, Lineage, and Strategy.</h3><p>${escapeHtml(data.insights[0] || "Load CSV and create Research items to activate Brain.")}</p><p><strong>Today's Cross Insight:</strong> ${escapeHtml(cross.recommendations?.[0]?.reason || cross.crossSummary?.status || "Cross CSV data is not loaded yet.")}</p><p><strong>Trend Summary:</strong> ${escapeHtml(trend.trendSummary)}</p><p><strong>Engine DNA Summary:</strong> ${escapeHtml(dna?.summary || "Engine DNA data is not ready yet.")}</p><p><strong>Knowledge Graph Insight:</strong> ${escapeHtml(kg?.insight?.[0] || "Knowledge Graph data is not ready yet.")}</p><p><strong>Hypothesis Summary:</strong> ${escapeHtml(hypothesis?.hypothesisSummary?.topTitle || "Hypothesis data is not ready yet.")}</p><p><strong>Lineage Summary:</strong> ${escapeHtml(lineage?.hypothesisLineageSummary?.largestFamily || "Hypothesis Lineage data is not ready yet.")}</p><p><strong>Strategy Summary:</strong> ${escapeHtml(strategy?.strategySummary?.summary || "Research Strategy data is not ready yet.")}</p>`);
   setHtml("brainOverviewMetrics", metrics([
     ["In Progress", data.overview.inProgress],
     ["Protected", data.overview.protected],
@@ -1186,7 +1505,9 @@ function renderBrain() {
     ["Hypotheses", hypothesis?.hypothesisSummary?.total || 0],
     ["Top Hypothesis", hypothesis?.hypothesisSummary?.topScore || 0],
     ["Lineage Relations", lineage?.hypothesisLineageSummary?.relationCount || 0],
-    ["Top Score 2.0", lineage?.hypothesisLineageSummary?.topScore2 || 0]
+    ["Top Score 2.0", lineage?.hypothesisLineageSummary?.topScore2 || 0],
+    ["Strategy Candidates", strategy?.researchStrategy?.length || 0],
+    ["Strategy Coverage", strategy?.strategySummary?.coverage || "-"]
   ]));
   const perf = PerformanceUtil.analysisStatistics(engine);
   setHtml("brainPerformance", metrics([
@@ -1243,6 +1564,12 @@ function renderBrain() {
     ["Avg Weighted Evidence", lineage.hypothesisLineageSummary.averageWeightedEvidence],
     ["Avg Readiness", `${lineage.hypothesisLineageSummary.averageValidationReadiness}%`]
   ])}` : `<div class="empty">Hypothesis Lineage data is not ready.</div>`);
+  setHtml("brainStrategySummary", strategy ? `<div class="warning-list"><div><strong>Next Best Research:</strong> ${escapeHtml(strategy.strategySummary.currentBestResearch)}</div><div><strong>Highest ROI:</strong> ${escapeHtml(strategy.strategySummary.highestROI)}</div><div><strong>Highest Impact:</strong> ${escapeHtml(strategy.strategySummary.highestImpact)}</div><div><strong>Lowest Cost:</strong> ${escapeHtml(strategy.strategySummary.lowestCost)}</div><div><strong>Current Blocker:</strong> ${escapeHtml(strategy.strategySummary.currentBlocker)}</div><div><strong>Roadmap:</strong> ${escapeHtml(strategy.strategySummary.roadmap)}</div></div>${metrics([
+    ["Coverage", strategy.strategySummary.coverage],
+    ["Blockers", strategy.strategySummary.blockerCount],
+    ["Roadmap Progress", `${strategy.strategySummary.roadmapProgress}%`],
+    ["Quick Win", strategy.strategySummary.quickWin]
+  ])}<p>Research candidates only. No EA or trading-condition changes are proposed here.</p>` : `<div class="empty">Research Strategy data is not ready.</div>`);
   setHtml("brainInsights", `<div class="warning-list">${data.insights.map((line) => `<div>${escapeHtml(line)}</div>`).join("")}</div>`);
   setHtml("brainSummary", table(["Period", "Added", "Completed", "Evidence", "Decisions"], [
     ["Weekly", data.weekly.added, data.weekly.completed, data.weekly.evidence, data.weekly.decisions],
@@ -1299,6 +1626,7 @@ function analyzerSnapshot() {
   const workspace = engine.results.workspace || (typeof ResearchWorkspaceEngine !== "undefined" ? new ResearchWorkspaceEngine({ analysisEngine: engine, researchManager }).snapshot() : null);
   const hypothesis = engine.results.hypothesis || (typeof ResearchHypothesisEngine !== "undefined" ? new ResearchHypothesisEngine({ analysisEngine: engine, researchManager }).snapshot() : null);
   const lineage = engine.results.hypothesisLineage || (typeof HypothesisLineageEngine !== "undefined" ? new HypothesisLineageEngine({ analysisEngine: engine, researchManager }).snapshot() : null);
+  const strategy = engine.results.researchStrategy || (typeof ResearchStrategyEngine !== "undefined" ? new ResearchStrategyEngine({ analysisEngine: engine, researchManager }).snapshot() : null);
   return {
     datetime: new Date().toISOString(),
     files: Array.from(engine.files.keys()),
@@ -1359,6 +1687,24 @@ function analyzerSnapshot() {
     orphanHypotheses: lineage?.orphanHypotheses || [],
     supersededHypotheses: lineage?.supersededHypotheses || [],
     hypothesisCompareSummary: lineage?.hypothesisCompareSummary || null,
+    researchStrategy: strategy?.researchStrategy || [],
+    priorityMatrix: strategy?.priorityMatrix || [],
+    researchROI: strategy?.researchROI || [],
+    coverage: strategy?.coverage || [],
+    roadmap: strategy?.roadmap || [],
+    quickWin: strategy?.quickWin || [],
+    longProject: strategy?.longProject || [],
+    duplicateResearch: strategy?.duplicateResearch || [],
+    missingResearch: strategy?.missingResearch || [],
+    blockers: strategy?.blockers || [],
+    strategySummary: strategy?.strategySummary || null,
+    productivity: {
+      version: PRODUCTIVITY_VERSION,
+      dashboardCards: getDashboardCards(),
+      favoriteEngine: getFavoriteEngine(),
+      snapshotCompare: loadResearchHistory().length >= 2 ? snapshotDiff(loadResearchHistory().at(-2), loadResearchHistory().at(-1)) : null,
+      searchIndexCount: buildSearchIndex().length
+    },
     dataQuality: quality,
     crossCsv: {
       score: cross.correlationScore,
@@ -1473,6 +1819,11 @@ function table(headers, rows) {
   return `${body}<div class="table-more"><span>Showing ${limit} / ${rows.length}</span><button class="mini-button load-more-table" data-table-key="${escapeHtml(key)}" data-next-limit="${Math.min(rows.length, limit + 100)}">Load More</button></div>`;
 }
 
+function rawTable(headers, rows) {
+  if (!rows.length) return `<div class="empty">No data.</div>`;
+  return `<table><thead><tr>${headers.map((h) => `<th>${escapeHtml(h)}</th>`).join("")}</tr></thead><tbody>${rows.map((row) => `<tr>${row.map((v, i) => `<td>${i === 0 ? escapeHtml(v) : v}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
+}
+
 function virtualTableKey(headers, length) {
   return `${headers.join("|")}:${length}`.replace(/[^a-zA-Z0-9:_|-]/g, "_");
 }
@@ -1553,6 +1904,40 @@ function formatDate(value) {
 }
 
 function downloadHistory() { downloadText("ResearchHistory.json", JSON.stringify(loadResearchHistory(), null, 2), "application/json"); }
+
+function exportAllResearch() {
+  ResearchWorkspaceStore.addActivity("Export", "All Research exports downloaded", "Markdown / JSON / CSV");
+  const snapshot = analyzerSnapshot();
+  const q = new DataQualityEngine(engine).snapshot();
+  const cross = engine.results.crossCsv || new CrossCsvEngine(engine).snapshot();
+  const perf = PerformanceUtil.analysisStatistics(engine);
+  const trendSnapshot = engine.results.trend || new TrendEngine({ analysisEngine: engine, researchManager }).snapshot();
+  const dna = engine.results.engineDna || (typeof EngineDnaEngine !== "undefined" ? new EngineDnaEngine({ analysisEngine: engine }).snapshot() : null);
+  const kg = engine.results.knowledgeGraph || (typeof KnowledgeGraphEngine !== "undefined" ? new KnowledgeGraphEngine({ analysisEngine: engine, researchManager }).snapshot() : null);
+  const workspace = engine.results.workspace || (typeof ResearchWorkspaceEngine !== "undefined" ? new ResearchWorkspaceEngine({ analysisEngine: engine, researchManager }).snapshot() : null);
+  const hypothesis = engine.results.hypothesis || (typeof ResearchHypothesisEngine !== "undefined" ? new ResearchHypothesisEngine({ analysisEngine: engine, researchManager }).snapshot() : null);
+  const lineage = engine.results.hypothesisLineage || (typeof HypothesisLineageEngine !== "undefined" ? new HypothesisLineageEngine({ analysisEngine: engine, researchManager }).snapshot() : null);
+  const strategy = engine.results.researchStrategy || (typeof ResearchStrategyEngine !== "undefined" ? new ResearchStrategyEngine({ analysisEngine: engine, researchManager }).snapshot() : null);
+  const markdown = `${buildMarkdownReport(engine.results, byId("researchMemo")?.value || "")}\n\n${productivityMarkdown()}\n\n${workspaceMarkdown(workspace)}\n\n${hypothesisMarkdown(hypothesis)}\n\n${hypothesisLineageMarkdown(lineage)}\n\n${researchStrategyMarkdown(strategy)}\n\n${dataQualityMarkdown(q)}\n\n${crossCsvMarkdown(cross)}\n\n${engineDnaMarkdown(dna)}\n\n${knowledgeGraphMarkdown(kg)}\n\n${trendMarkdown(trendSnapshot)}\n\n${performanceMarkdown(perf)}`;
+  downloadText("ScalpLayer_Research_Export.md", markdown, "text/markdown");
+  setTimeout(() => downloadText("ScalpLayer_AnalyzerSnapshot.json", JSON.stringify(snapshot, null, 2), "application/json"), 250);
+  setTimeout(() => downloadText("ScalpLayer_Research_Summary.csv", buildResearchSummaryCsv(), "text/csv;charset=utf-8"), 500);
+}
+
+function buildResearchSummaryCsv() {
+  const rows = [["Section", "Name", "MetricA", "MetricB", "MetricC", "Note"]];
+  engine.results.engineActivity.forEach((x) => rows.push(["EngineActivity", x.engine, x.checks, x.timeOk, x.entries, (x.topNg || []).slice(0, 3).map((n) => `${n.name}:${n.count}`).join(" / ")]));
+  engine.results.tradeByEngine.forEach((x) => rows.push(["TradeByEngine", x.name, x.trades, round(x.winRate), round(x.pips), `PF=${pf(x.profitFactor || 0)}`]));
+  (engine.results.nearMiss.ngReasons || []).forEach((x) => rows.push(["TopNG", x.name, x.count, "", "", "NearMiss bottleneck"]));
+  (engine.results.researchStrategy?.researchROI || []).slice(0, 30).forEach((x) => rows.push(["ResearchROI", x.title, x.priority, x.researchROI, x.researchCost, x.reason]));
+  return "\uFEFF" + rows.map((row) => row.map(csvCell).join(",")).join("\n");
+}
+
+function csvCell(value) {
+  const text = String(value ?? "");
+  return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+}
+
 function downloadMarkdownReport() {
   const q = new DataQualityEngine(engine).snapshot();
   const cross = engine.results.crossCsv || new CrossCsvEngine(engine).snapshot();
@@ -1564,7 +1949,8 @@ function downloadMarkdownReport() {
   const hypothesis = engine.results.hypothesis || (typeof ResearchHypothesisEngine !== "undefined" ? new ResearchHypothesisEngine({ analysisEngine: engine, researchManager }).snapshot() : null);
   ResearchWorkspaceStore.addActivity("Snapshot", "ResearchReport.md exported", "Workspace summary included");
   const lineage = engine.results.hypothesisLineage || (typeof HypothesisLineageEngine !== "undefined" ? new HypothesisLineageEngine({ analysisEngine: engine, researchManager }).snapshot() : null);
-  downloadText("ResearchReport.md", `${buildMarkdownReport(engine.results, byId("researchMemo")?.value || "")}\n\n${workspaceMarkdown(workspace)}\n\n${hypothesisMarkdown(hypothesis)}\n\n${hypothesisLineageMarkdown(lineage)}\n\n${dataQualityMarkdown(q)}\n\n${crossCsvMarkdown(cross)}\n\n${engineDnaMarkdown(dna)}\n\n${knowledgeGraphMarkdown(kg)}\n\n${trendMarkdown(trendSnapshot)}\n\n${performanceMarkdown(perf)}`, "text/markdown");
+  const strategy = engine.results.researchStrategy || (typeof ResearchStrategyEngine !== "undefined" ? new ResearchStrategyEngine({ analysisEngine: engine, researchManager }).snapshot() : null);
+  downloadText("ResearchReport.md", `${buildMarkdownReport(engine.results, byId("researchMemo")?.value || "")}\n\n${productivityMarkdown()}\n\n${workspaceMarkdown(workspace)}\n\n${hypothesisMarkdown(hypothesis)}\n\n${hypothesisLineageMarkdown(lineage)}\n\n${researchStrategyMarkdown(strategy)}\n\n${dataQualityMarkdown(q)}\n\n${crossCsvMarkdown(cross)}\n\n${engineDnaMarkdown(dna)}\n\n${knowledgeGraphMarkdown(kg)}\n\n${trendMarkdown(trendSnapshot)}\n\n${performanceMarkdown(perf)}`, "text/markdown");
 }
 
 function dataQualityMarkdown(q) {
@@ -1757,6 +2143,34 @@ function workspaceMarkdown(workspace) {
   ].join("\n");
 }
 
+function productivityMarkdown() {
+  const history = loadResearchHistory();
+  const favorite = getFavoriteEngine();
+  const favoriteData = getEngineSummary(favorite);
+  const cards = getDashboardCards();
+  const previous = history.length >= 2 ? snapshotDiff(history.at(-2), history.at(-1)) : null;
+  return [
+    "## Research Productivity v6.1",
+    "",
+    "### Favorite Engine",
+    `- Engine: ${favorite || "-"}`,
+    `- Trades: ${favoriteData?.trade?.trades || 0}`,
+    `- WinRate: ${round(favoriteData?.trade?.winRate || 0)}%`,
+    `- TimeOK: ${favoriteData?.activity?.timeOk || 0}`,
+    `- EntryRate: ${round(favoriteData?.activity?.entryRate || 0)}%`,
+    "",
+    "### Snapshot Compare",
+    previous ? `- Previous Snapshot: Trades ${signed(previous.trades)}, NearMiss ${signed(previous.nearMiss)}, WinRate ${signed(round(previous.winRate))}%, PF ${signed(round(previous.profitFactor))}` : "- Previous Snapshot: Need at least two snapshots.",
+    "",
+    "### Dashboard Customize",
+    ...cards.map((card, index) => `- ${index + 1}. ${card.label}: ${card.visible ? "ON" : "OFF"}`),
+    "",
+    "### Export",
+    "- Export All includes Markdown, JSON snapshot, and CSV summary.",
+    "- This is Research export only. It does not rewrite EA, CSV, or trading conditions."
+  ].join("\n");
+}
+
 function hypothesisMarkdown(hypothesis) {
   if (!hypothesis) return ["## Research Hypothesis", "", "- Hypothesis module is not loaded."].join("\n");
   return [
@@ -1836,6 +2250,49 @@ function hypothesisLineageMarkdown(lineage) {
     "## Superseded Hypotheses",
     "",
     ...((lineage.supersededHypotheses || []).length ? lineage.supersededHypotheses.map((x) => `- ${x.title}: superseded by ${x.supersededBy} / ${x.note}`) : ["- No superseded hypotheses."])
+  ].join("\n");
+}
+
+function researchStrategyMarkdown(strategy) {
+  if (!strategy) return ["## Research Strategy", "", "- Research Strategy module is not loaded."].join("\n");
+  const s = strategy.strategySummary || {};
+  return [
+    "## Research Strategy",
+    "",
+    `- Current Best Research: ${s.currentBestResearch || "-"}`,
+    `- Highest ROI: ${s.highestROI || "-"}`,
+    `- Highest Impact: ${s.highestImpact || "-"}`,
+    `- Lowest Cost: ${s.lowestCost || "-"}`,
+    `- Current Blocker: ${s.currentBlocker || "-"}`,
+    `- Coverage: ${s.coverage || "-"}`,
+    `- Roadmap: ${s.roadmap || "-"}`,
+    "",
+    "### Priority Matrix",
+    ...strategy.priorityMatrix.map((x) => `- ${x.priority}: ${x.count}`),
+    "",
+    "### ROI",
+    ...strategy.researchROI.slice(0, 10).map((x) => `- ${x.title}: Priority ${x.priority} / ROI ${x.researchROI} / Value ${x.expectedResearchValue} / Cost ${x.researchCost} / Risk ${x.researchRisk}`),
+    "",
+    "### Coverage",
+    ...strategy.coverage.map((x) => `- ${x.area}: ${x.coveragePercent}% / ${x.status}`),
+    "",
+    "### Roadmap",
+    ...strategy.roadmap.map((x) => `- Step ${x.step}: ${x.title} / ${x.action} / Blocker ${x.blocker}`),
+    "",
+    "### Quick Win",
+    ...(strategy.quickWin.length ? strategy.quickWin.map((x) => `- ${x.title}: ROI ${x.researchROI} / Cost ${x.researchCost}`) : ["- No quick win candidate."]),
+    "",
+    "### Long Project",
+    ...(strategy.longProject.length ? strategy.longProject.map((x) => `- ${x.title}: Value ${x.expectedResearchValue} / Cost ${x.researchCost}`) : ["- No long project candidate."]),
+    "",
+    "### Duplicate Research",
+    ...(strategy.duplicateResearch.length ? strategy.duplicateResearch.map((x) => `- ${x.source} / ${x.target}: ${x.similarity}%`) : ["- No duplicate Research detected."]),
+    "",
+    "### Missing Research",
+    ...(strategy.missingResearch.length ? strategy.missingResearch.map((x) => `- ${x.area}: ${x.coveragePercent}% / ${x.reason}`) : ["- No missing Research area detected."]),
+    "",
+    "### Blockers",
+    ...(strategy.blockers.length ? strategy.blockers.map((x) => `- ${x.name}: ${x.count}`) : ["- No blockers detected."])
   ].join("\n");
 }
 function downloadText(filename, text, type) {

@@ -1,5 +1,117 @@
 # CHANGELOG
 
+## v6.1 Research Productivity Edition
+
+### Added
+
+- Dashboard productivity bar
+- Important Dashboard cards placed near the top
+- Dashboard Customize panel
+- Dashboard card ON/OFF controls
+- Dashboard card order controls
+- Dashboard layout persistence with `localStorage`
+- Favorite Engine selection
+- Favorite Engine fixed Dashboard summary
+- Research Snapshot Compare
+- Previous snapshot comparison
+- Previous-day snapshot comparison
+- Last 7 snapshot average comparison
+- Improvement / worsening badges
+- Fast Search tab
+- Full-text search across Research, Hypothesis, Knowledge Graph, TopNG, and Engine data
+- Export All button
+- Markdown / JSON / CSV batch export
+- `ScalpLayer_Research_Export.md`
+- `ScalpLayer_AnalyzerSnapshot.json`
+- `ScalpLayer_Research_Summary.csv`
+- Research Productivity section in Markdown export
+- Productivity metadata in Analyzer Snapshot
+- Responsive layout improvements
+
+### Performance
+
+- Reused existing analysis snapshots instead of adding a new analysis engine
+- Kept active-tab rendering model
+- Continued Virtual Table use for large tables
+- Reduced Dashboard scroll by making high-priority controls visible first
+
+### Not Changed
+
+- No EA changes
+- No CSV changes
+- No CSV rewriting
+- No trading-condition changes
+- No auto optimization
+- No auto trading
+- No AI API calls
+- No fake data generation
+- No profit guarantee
+
+## v6.0 Research Strategy Engine Edition
+
+### Added
+
+- `researchStrategyEngine.js`
+- Research Strategy tab
+- Priority Matrix
+- Research ROI
+- Research Cost
+- Expected Research Value
+- Research Risk
+- Research Coverage
+- Research Roadmap
+- Quick Win
+- Long Project
+- Duplicate Research
+- Missing Research
+- Dependency Analyzer
+- Blocker Detection
+- Research HeatMap
+- Research Strategy Summary
+- Dashboard integration
+- AI Research Brain integration
+- Markdown integration
+- Analyzer Snapshot integration
+- Research History Snapshot summary fields
+
+### Analyzer Snapshot Fields
+
+- `researchStrategy`
+- `priorityMatrix`
+- `researchROI`
+- `coverage`
+- `roadmap`
+- `quickWin`
+- `longProject`
+- `duplicateResearch`
+- `missingResearch`
+- `blockers`
+- `strategySummary`
+
+### Research History Snapshot Fields
+
+- `averageResearchROI`
+- `coveragePercent`
+- `highestImpactResearch`
+- `highestPriorityResearch`
+- `blockerCount`
+- `roadmapProgress`
+
+### Not Changed
+
+- No EA changes
+- No CSV changes
+- No CSV rewriting
+- No trading-condition changes
+- No auto optimization
+- No auto trading
+- No AI API calls
+- No fake data generation
+- No fake evidence generation
+- No profit guarantee
+
+Existing Dashboard, AI Research Report, Engine, Engine DNA, Condition, HeatMap, Session, NearMiss, Trade, Signal, CSV Manager, Research Data Quality, Cross CSV Intelligence, Research Intelligence, Research Manager, Research Board, Research Portfolio, Research Workspace, Research Hypothesis, Hypothesis Lineage, AI Research Brain, Knowledge Graph, Research Timeline, Performance Cache, Lazy Render, Virtual Table, Markdown, JSON, Research History, Engine Evolution, CSV Compatibility, and Research Workflow are retained.
+
 ## v5.3 Hypothesis Lineage & Evidence Weighting Edition
 
 ### Added

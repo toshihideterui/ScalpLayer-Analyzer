@@ -7,12 +7,21 @@ class BrainEngine {
   }
 
   snapshot() {
+    const cache = this.analysisEngine._snapshotCache ||= {};
+    if (cache.brain?.version === this.analysisEngine.analysisVersion) {
+      if (typeof PerformanceUtil !== "undefined") PerformanceUtil.cacheHit("Brain");
+      return cache.brain.snapshot;
+    }
+    if (typeof PerformanceUtil !== "undefined") {
+      PerformanceUtil.cacheMiss("Brain");
+      PerformanceUtil.startTimer("Brain");
+    }
     const items = this.researchManager.items || [];
     const portfolio = this.researchManager.portfolio();
     const recommendations = this.recommendationEngine.recommendations(5);
     const knowledge = this.knowledgeEngine.entries();
     const clusters = this.knowledgeEngine.clusters();
-    return {
+    const snapshot = {
       overview: this.overview(items, portfolio),
       priorityRanking: this.priorityRanking(items),
       recommendations,
@@ -31,6 +40,9 @@ class BrainEngine {
       weekly: this.summaryByDays(items, 7),
       monthly: this.summaryByDays(items, 30)
     };
+    cache.brain = { version: this.analysisEngine.analysisVersion, snapshot };
+    if (typeof PerformanceUtil !== "undefined") PerformanceUtil.stopTimer("Brain");
+    return snapshot;
   }
 
   overview(items, portfolio) {

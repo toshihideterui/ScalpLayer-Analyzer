@@ -1,6 +1,6 @@
-# ScalpLayer Research Lab v5.3
+# ScalpLayer Research Lab v6.1
 
-Hypothesis Lineage & Evidence Weighting Edition
+Research Productivity Edition
 
 ScalpLayer Research Lab is a research-only dashboard for CSV files exported by ScalpLayer Integrated EA.
 It does not edit the EA, rewrite CSV files, change trading conditions, run auto optimization, call AI APIs, or guarantee profit.
@@ -11,7 +11,80 @@ Build -> Research -> Debug -> Validate -> Improve -> Optimize -> Repeat
 
 ---
 
-## What v5.3 Adds
+## What v6.1 Adds
+
+v6.1 does not add a new analysis engine.
+It improves daily Research productivity.
+
+Added:
+
+- Research Dashboard layout improvements
+- Important cards moved to the top
+- Dashboard Customize
+- Dashboard card ON/OFF
+- Dashboard card display order control
+- `localStorage` persistence for dashboard layout
+- Favorite Engine
+- Favorite Engine fixed display on Dashboard
+- Research Snapshot Compare
+- Previous snapshot comparison
+- Previous-day snapshot comparison
+- Last 7 snapshot average comparison
+- Improvement / worsening color display
+- Fast Search tab
+- Full-text search across Research, Hypothesis, Knowledge Graph, TopNG, and Engine data
+- Export All button
+- Markdown / JSON / CSV summary batch export
+- Research Productivity section in Markdown export
+- Productivity settings in Analyzer Snapshot JSON
+- Responsive layout improvements
+- Dashboard rendering cleanup
+
+No new trading logic, AI API, CSV rewriting, or EA changes were added.
+
+---
+
+## What v6.0 Adds
+
+v6.0 adds `Research Strategy Engine`.
+
+This engine answers:
+
+```text
+Which Research should be done next?
+```
+
+It does not decide trading priority.
+It only ranks Research candidates.
+
+Added:
+
+- `researchStrategyEngine.js`
+- Research Strategy tab
+- Research Priority Matrix
+- Research Cost
+- Expected Research Value
+- Research ROI
+- Research Risk
+- Dependency Analyzer
+- Blocker Detection
+- Quick Win Top10
+- Long Project Top10
+- Duplicate Research
+- Missing Research
+- Research Coverage
+- Research HeatMap
+- Research Roadmap
+- Research Strategy Summary
+- Dashboard integration
+- AI Research Brain integration
+- Markdown integration
+- Analyzer Snapshot integration
+- Research History summary fields
+
+---
+
+## What v5.3 Added
 
 v5.3 extends the v5.2 Research Hypothesis system with:
 
@@ -212,6 +285,7 @@ When updating Workers & Pages, upload these files together:
 - `researchWorkspaceEngine.js`
 - `researchHypothesisEngine.js`
 - `hypothesisLineageEngine.js`
+- `researchStrategyEngine.js`
 - `researchTemplates.js`
 - `researchStorage.js`
 - `researchManager.js`

@@ -38,6 +38,7 @@ class AnalysisEngine {
       workspace: null,
       hypothesis: null,
       hypothesisLineage: null,
+      researchStrategy: null,
       performance: {}
     };
   }
@@ -135,6 +136,9 @@ class AnalysisEngine {
     if (typeof ResearchWorkspaceEngine !== "undefined") {
       this.results.workspace = new ResearchWorkspaceEngine({ analysisEngine: this, researchManager: typeof researchManager !== "undefined" ? researchManager : null }).snapshot();
     }
+    if (typeof ResearchStrategyEngine !== "undefined") {
+      this.results.researchStrategy = new ResearchStrategyEngine({ analysisEngine: this, researchManager: typeof researchManager !== "undefined" ? researchManager : null }).snapshot();
+    }
     this.performance = typeof PerformanceUtil !== "undefined" ? PerformanceUtil.analysisStatistics(this) : {};
     this.results.performance = this.performance;
     if (typeof PerformanceUtil !== "undefined") {
@@ -159,7 +163,7 @@ class AnalysisEngine {
     const workspace = this.results.workspace;
     const hypothesis = this.results.hypothesis;
     const lines = [
-      "Analyze this ScalpLayer Research Lab v5.0 result.",
+      "Analyze this ScalpLayer Research Lab v6.1 result.",
       "",
       "Goal:",
       "Find Research candidates from real CSV data. Do not suggest immediate trading-condition changes.",
@@ -196,6 +200,20 @@ class AnalysisEngine {
       `LargestHypothesisFamily=${this.results.hypothesisLineage?.hypothesisLineageSummary?.largestFamily || "-"}`,
       `OrphanHypotheses=${this.results.hypothesisLineage?.hypothesisLineageSummary?.orphanCount || 0}`,
       "",
+      "Research Strategy Summary:",
+      `CurrentBestResearch=${this.results.researchStrategy?.strategySummary?.currentBestResearch || "-"}`,
+      `HighestROI=${this.results.researchStrategy?.strategySummary?.highestROI || "-"}`,
+      `HighestImpact=${this.results.researchStrategy?.strategySummary?.highestImpact || "-"}`,
+      `LowestCost=${this.results.researchStrategy?.strategySummary?.lowestCost || "-"}`,
+      `CurrentBlocker=${this.results.researchStrategy?.strategySummary?.currentBlocker || "-"}`,
+      `Coverage=${this.results.researchStrategy?.strategySummary?.coverage || "-"}`,
+      "",
+      "Research Productivity v6.1:",
+      "DashboardCustomize=true",
+      "SnapshotCompare=true",
+      "FastSearch=true",
+      "ExportAll=Markdown/JSON/CSV",
+      "",
       "Top Research Candidates:"
     ];
     top.forEach((s, i) => {
@@ -204,7 +222,7 @@ class AnalysisEngine {
       lines.push(`Reason: ${s.reason}`);
     });
     lines.push("");
-    lines.push("Please analyze Trade, NearMiss, TopNG, Session, Condition, Engine Health, Cross CSV relation, Research Timeline, Engine DNA, Knowledge Graph, Research Workspace, Research Hypothesis, Hypothesis Lineage, Evidence Weighting, and Validation Readiness. Propose the next Research direction only.");
+    lines.push("Please analyze Trade, NearMiss, TopNG, Session, Condition, Engine Health, Cross CSV relation, Research Timeline, Engine DNA, Knowledge Graph, Research Workspace, Research Hypothesis, Hypothesis Lineage, Evidence Weighting, Validation Readiness, and Research Strategy. Propose the next Research direction only.");
     return lines.join("\n");
   }
 }
@@ -882,6 +900,7 @@ function saveResearchSnapshot(results, files = []) {
   const workspaceSnapshot = typeof ResearchWorkspaceEngine !== "undefined" ? new ResearchWorkspaceEngine({ analysisEngine: { results, datasets: {}, analysisVersion: results.performance?.analysisVersion || 0, _snapshotCache: {} }, researchManager: typeof researchManager !== "undefined" ? researchManager : null }).snapshot() : null;
   const hypothesisSnapshot = typeof ResearchHypothesisEngine !== "undefined" ? new ResearchHypothesisEngine({ analysisEngine: { results, datasets: {}, analysisVersion: results.performance?.analysisVersion || 0, _snapshotCache: {} }, researchManager: typeof researchManager !== "undefined" ? researchManager : null }).snapshot() : null;
   const hypothesisLineageSnapshot = typeof HypothesisLineageEngine !== "undefined" ? new HypothesisLineageEngine({ analysisEngine: { results: { ...results, hypothesis: hypothesisSnapshot }, datasets: {}, analysisVersion: results.performance?.analysisVersion || 0, _snapshotCache: {} }, researchManager: typeof researchManager !== "undefined" ? researchManager : null }).snapshot() : null;
+  const strategySnapshot = typeof ResearchStrategyEngine !== "undefined" ? new ResearchStrategyEngine({ analysisEngine: { results: { ...results, workspace: workspaceSnapshot, hypothesis: hypothesisSnapshot, hypothesisLineage: hypothesisLineageSnapshot }, datasets: {}, analysisVersion: results.performance?.analysisVersion || 0, _snapshotCache: {} }, researchManager: typeof researchManager !== "undefined" ? researchManager : null }).snapshot() : null;
   const snapshot = {
     fingerprint,
     datetime: new Date().toISOString(),
@@ -957,7 +976,13 @@ function saveResearchSnapshot(results, files = []) {
     averageWeightedEvidence: hypothesisLineageSnapshot?.hypothesisLineageSummary?.averageWeightedEvidence || 0,
     averageValidationReadiness: hypothesisLineageSnapshot?.hypothesisLineageSummary?.averageValidationReadiness || 0,
     topHypothesisScore2: hypothesisLineageSnapshot?.hypothesisLineageSummary?.topScore2 || 0,
-    topHypothesisConfidencePercent: hypothesisLineageSnapshot?.hypothesisLineageSummary?.topConfidencePercent || 0
+    topHypothesisConfidencePercent: hypothesisLineageSnapshot?.hypothesisLineageSummary?.topConfidencePercent || 0,
+    averageResearchROI: strategySnapshot?.researchROI?.length ? Math.round(strategySnapshot.researchROI.reduce((sum, x) => sum + (x.roiScore || 0), 0) / strategySnapshot.researchROI.length * 100) / 100 : 0,
+    coveragePercent: strategySnapshot?.strategySummary?.coveragePercent || 0,
+    highestImpactResearch: strategySnapshot?.strategySummary?.highestImpact || "-",
+    highestPriorityResearch: strategySnapshot?.strategySummary?.currentBestResearch || "-",
+    blockerCount: strategySnapshot?.strategySummary?.blockerCount || 0,
+    roadmapProgress: strategySnapshot?.strategySummary?.roadmapProgress || 0
   };
   history.push(snapshot);
   localStorage.setItem("scalplayerResearchHistory", JSON.stringify(history.slice(-100)));

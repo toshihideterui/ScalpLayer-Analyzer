@@ -1,4 +1,4 @@
-# CSV Specification v5.3
+# CSV Specification v6.0
 
 ScalpLayer Research Lab reads CSV files exported by ScalpLayer Integrated EA.
 
@@ -10,12 +10,29 @@ The Analyzer does not modify CSV files. It only normalizes column names internal
 
 ```text
 CSV_SCHEMA_VERSION = 4.0.1
-Analyzer Edition = v5.3 Hypothesis Lineage & Evidence Weighting Edition
+Analyzer Edition = v6.0 Research Strategy Engine Edition
 ```
 
-v5.3 does not require a new CSV format. It adds Hypothesis Lineage, Evidence Weighting, Hypothesis History, Validation Readiness, and Hypothesis Compare on top of existing Analyzer results.
+v6.0 does not require a new CSV format. It adds Research Strategy Engine on top of existing Analyzer results.
 
 The CSV schema version remains `4.0.1`.
+
+v6.0 does not add new CSV files and does not change any existing CSV schema.
+
+The Strategy Engine reads:
+
+- Research Manager
+- Research Workspace
+- Research Hypothesis
+- Hypothesis Lineage
+- Knowledge Graph
+- Engine DNA
+- Cross CSV
+- Timeline
+- Research History
+- Performance
+- Data Quality
+- Analyzer Snapshot
 
 v5.3 localStorage keys:
 

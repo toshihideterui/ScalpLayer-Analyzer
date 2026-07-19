@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>ScalpLayer Research Lab v5.3</title>
+  <title>ScalpLayer Research Lab v6.1</title>
   <link rel="stylesheet" href="style.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 </head>
@@ -14,7 +14,7 @@
         <div class="brand-mark">SL</div>
         <div>
           <h1>ScalpLayer Research Lab</h1>
-          <p>Hypothesis Lineage & Evidence Weighting Edition v5.3</p>
+          <p>Research Productivity Edition v6.1</p>
         </div>
       </div>
 
@@ -50,6 +50,8 @@
         <button class="tab" data-tab="workspace">Research Workspace</button>
         <button class="tab" data-tab="hypothesis">Research Hypothesis</button>
         <button class="tab" data-tab="lineage">Hypothesis Lineage</button>
+        <button class="tab" data-tab="strategy">Research Strategy</button>
+        <button class="tab" data-tab="search">Fast Search</button>
         <button class="tab" data-tab="brain">AI Research Brain</button>
         <button class="tab" data-tab="knowledgeGraph">Knowledge Graph</button>
         <button class="tab" data-tab="timeline">Research Timeline</button>
@@ -72,6 +74,7 @@
         </div>
         <div class="top-actions">
           <button id="promptButton" class="ghost-button">Prompt Builder</button>
+          <button id="exportAllButton" class="ghost-button">Export All</button>
           <button id="downloadReportButton" class="ghost-button">ResearchReport.md</button>
           <button id="downloadHistoryButton" class="ghost-button">History JSON</button>
           <button id="resetButton" class="ghost-button">Reset</button>
@@ -84,16 +87,31 @@
           <h3>ScalpLayer Project health, Research targets, and next hypotheses.</h3>
           <p>This tool never rewrites the EA or CSV. It only turns exported CSV data into Research candidates.</p>
         </div>
-        <div id="labDashboard" class="research-strip"></div>
-        <div id="workspaceDashboard" class="card"></div>
-        <div id="hypothesisDashboard" class="card"></div>
-        <div id="lineageDashboard" class="card"></div>
-        <div id="engineDnaDashboard" class="card"></div>
-        <div id="knowledgeGraphDashboard" class="card"></div>
-        <div id="trendDashboard" class="card"></div>
-        <div id="analysisWarnings" class="card"></div>
-        <div id="performancePanel" class="card"></div>
-        <div id="progressPanel" class="card"></div>
+        <div id="productivityBar" class="productivity-bar"></div>
+        <div class="grid two dashboard-priority">
+          <article class="card"><h3>Favorite Engine</h3><div id="favoriteEnginePanel"></div></article>
+          <article class="card"><h3>Snapshot Compare</h3><div id="snapshotComparePanel"></div></article>
+        </div>
+        <article class="card dashboard-customize-card">
+          <div class="card-head">
+            <h3>Dashboard Customize</h3>
+            <span>localStorage</span>
+          </div>
+          <div id="dashboardCustomizePanel"></div>
+        </article>
+        <div id="dashboardCards" class="dashboard-cards">
+          <div id="labDashboard" class="research-strip" data-card-id="labDashboard"></div>
+          <div id="workspaceDashboard" class="card" data-card-id="workspaceDashboard"></div>
+          <div id="strategyDashboard" class="card" data-card-id="strategyDashboard"></div>
+          <div id="hypothesisDashboard" class="card" data-card-id="hypothesisDashboard"></div>
+          <div id="lineageDashboard" class="card" data-card-id="lineageDashboard"></div>
+          <div id="engineDnaDashboard" class="card" data-card-id="engineDnaDashboard"></div>
+          <div id="knowledgeGraphDashboard" class="card" data-card-id="knowledgeGraphDashboard"></div>
+          <div id="trendDashboard" class="card" data-card-id="trendDashboard"></div>
+          <div id="analysisWarnings" class="card" data-card-id="analysisWarnings"></div>
+          <div id="performancePanel" class="card" data-card-id="performancePanel"></div>
+          <div id="progressPanel" class="card" data-card-id="progressPanel"></div>
+        </div>
         <div class="metric-grid" id="dashboardMetrics"></div>
         <div class="grid two">
           <article class="card"><div class="card-head"><h3>Equity Curve</h3><span>TradeHistory</span></div><canvas id="equityChart"></canvas></article>
@@ -398,6 +416,45 @@
         <article class="card"><h3>Hypothesis Activity Timeline</h3><div id="hypothesisTimeline"></div></article>
       </section>
 
+      <section class="tab-panel" id="strategy">
+        <div class="section-head"><h3>Research Strategy</h3><p>Prioritizes which Research should be done next. Research only. No EA, CSV, or trading-condition changes.</p></div>
+        <div class="hero-card" id="strategyOverview"></div>
+        <div class="metric-grid" id="strategyMetrics"></div>
+        <div class="grid two">
+          <article class="card"><h3>Priority Matrix</h3><div id="strategyPriorityMatrix"></div></article>
+          <article class="card"><h3>Research ROI</h3><div id="strategyRoiTable"></div></article>
+        </div>
+        <div class="grid two">
+          <article class="card"><h3>Research Coverage</h3><div id="strategyCoverage"></div></article>
+          <article class="card"><h3>Current Blockers</h3><div id="strategyBlockers"></div></article>
+        </div>
+        <div class="grid two">
+          <article class="card"><h3>Quick Win Top10</h3><div id="strategyQuickWin"></div></article>
+          <article class="card"><h3>Long Project Top10</h3><div id="strategyLongProject"></div></article>
+        </div>
+        <article class="card"><h3>Research Roadmap</h3><div id="strategyRoadmap"></div></article>
+        <div class="grid two">
+          <article class="card"><h3>Duplicate Research</h3><div id="strategyDuplicate"></div></article>
+          <article class="card"><h3>Missing Research</h3><div id="strategyMissing"></div></article>
+        </div>
+        <div class="grid two">
+          <article class="card"><h3>Dependency Analyzer</h3><div id="strategyDependencies"></div></article>
+          <article class="card"><h3>Research HeatMap</h3><div id="strategyHeatmap"></div></article>
+        </div>
+      </section>
+
+      <section class="tab-panel" id="search">
+        <div class="section-head"><h3>Fast Search</h3><p>Search Research, Hypothesis, Knowledge Graph, TopNG, and Engine data. Research only.</p></div>
+        <article class="card">
+          <label>Search Query<input id="globalSearchInput" type="text" placeholder="Example: Core Rule E, RSI, ATR, Tokyo, Candidate G"></label>
+          <div class="memo-actions">
+            <button id="clearSearchButton" class="ghost-button">Clear</button>
+            <span id="globalSearchStatus"></span>
+          </div>
+        </article>
+        <article class="card"><h3>Search Results</h3><div id="globalSearchResults"></div></article>
+      </section>
+
       <section class="tab-panel" id="brain">
         <div class="section-head"><h3>AI Research Brain</h3><p>Rule-based Research Advisor. No AI API, no EA rewrite, no CSV rewrite.</p></div>
         <div class="hero-card" id="brainOverview"></div>
@@ -419,6 +476,7 @@
         <article class="card"><h3>Workspace Summary</h3><div id="brainWorkspaceSummary"></div></article>
         <article class="card"><h3>Hypothesis Summary</h3><div id="brainHypothesisSummary"></div></article>
         <article class="card"><h3>Hypothesis Lineage Summary</h3><div id="brainLineageSummary"></div></article>
+        <article class="card"><h3>Research Strategy Summary</h3><div id="brainStrategySummary"></div></article>
         <div class="grid two">
           <article class="card"><h3>Research Quality Statistics</h3><div id="brainStatistics"></div></article>
           <article class="card"><h3>Research Risk</h3><div id="brainRisks"></div></article>
@@ -499,6 +557,7 @@
   <script src="researchWorkspaceEngine.js"></script>
   <script src="researchHypothesisEngine.js"></script>
   <script src="hypothesisLineageEngine.js"></script>
+  <script src="researchStrategyEngine.js"></script>
   <script src="recommendationEngine.js"></script>
   <script src="knowledgeEngine.js"></script>
   <script src="brainEngine.js"></script>
