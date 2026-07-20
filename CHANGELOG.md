@@ -1,5 +1,38 @@
 # CHANGELOG
 
+## v6.2.1 UI & Stability Edition
+
+### Improved
+
+- Cleaned and restored Japanese UI text in `index.html`
+- Added basic inline fallback styles so the page remains readable if `style.css` fails to load
+- Improved Dashboard layout
+- Improved Current Symbol card visibility
+- Improved card spacing, title consistency, and button sizing
+- Improved tab usability on smaller screens with horizontal scrolling
+- Improved responsive layout for PC, notebook, tablet, and smartphone
+- Improved CSV Manager display columns:
+  - Symbol
+  - CSV Version
+  - Rows
+  - Loaded Time
+- Added table horizontal scroll wrappers
+- Reduced unnecessary `innerHTML` redraws in `setHtml`
+- Added safer ResearchHistory save handling
+- Added safer localStorage reads for dashboard settings and favorite engine
+
+### Not Changed
+
+- No analysis logic changes
+- No Research logic changes
+- No CSV schema changes
+- No CSV rewriting
+- No EA changes
+- No trading-condition changes
+- No AI API calls
+- Existing CSV compatibility retained
+- Existing localStorage keys retained
+
 ## v6.2 Multi Symbol Foundation Edition
 
 ### Added

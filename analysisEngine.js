@@ -199,7 +199,7 @@ class AnalysisEngine {
     const workspace = this.results.workspace;
     const hypothesis = this.results.hypothesis;
     const lines = [
-      "Analyze this ScalpLayer Research Lab v6.2 result.",
+      "Analyze this ScalpLayer Research Lab v6.2.1 result.",
       "",
       "Goal:",
       "Find Research candidates from real CSV data. Do not suggest immediate trading-condition changes.",
@@ -1063,15 +1063,23 @@ function saveResearchSnapshot(results, files = []) {
     roadmapProgress: strategySnapshot?.strategySummary?.roadmapProgress || 0
   };
   history.push(snapshot);
-  localStorage.setItem("scalplayerResearchHistory", JSON.stringify(history.slice(-100)));
+  try {
+    localStorage.setItem("scalplayerResearchHistory", JSON.stringify(history.slice(-100)));
+  } catch (error) {
+    console.warn("ResearchHistory save skipped", error);
+  }
 }
 
 function loadResearchHistory() {
   try { return JSON.parse(localStorage.getItem("scalplayerResearchHistory") || "[]"); } catch { return []; }
 }
 
-function loadMemo() { return localStorage.getItem("scalplayerResearchMemo") || ""; }
-function saveMemo(text) { localStorage.setItem("scalplayerResearchMemo", text || ""); }
+function loadMemo() {
+  try { return localStorage.getItem("scalplayerResearchMemo") || ""; } catch { return ""; }
+}
+function saveMemo(text) {
+  try { localStorage.setItem("scalplayerResearchMemo", text || ""); } catch (error) { console.warn("Research memo save skipped", error); }
+}
 
 function pick(row, keys) {
   for (const key of keys) if (row[key] !== undefined && row[key] !== "") return row[key];

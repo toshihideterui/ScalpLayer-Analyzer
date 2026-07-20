@@ -1,6 +1,6 @@
-# ScalpLayer Research Lab v6.2
+# ScalpLayer Research Lab v6.2.1
 
-Multi Symbol Foundation Edition
+UI & Stability Edition
 
 ScalpLayer Research Lab is a research-only dashboard for CSV files exported by ScalpLayer Integrated EA.
 It does not edit the EA, rewrite CSV files, change trading conditions, run auto optimization, call AI APIs, or guarantee profit.
@@ -8,6 +8,43 @@ It does not edit the EA, rewrite CSV files, change trading conditions, run auto 
 The purpose is to help continue the ScalpLayer Project research cycle:
 
 Build -> Research -> Debug -> Validate -> Improve -> Optimize -> Repeat
+
+---
+
+## What v6.2.1 Improves
+
+v6.2.1 does not add a new analysis engine.
+It improves UI quality, stability, maintainability, and responsiveness while keeping v6.2 analysis results unchanged.
+
+Improved:
+
+- Japanese UI text in `index.html`
+- Dashboard layout and Current Symbol card visibility
+- Card spacing and title consistency
+- Button and tab sizing
+- Responsive layout for PC, notebook, tablet, and smartphone
+- Horizontal tab scrolling on smaller screens
+- CSV Manager columns:
+  - Symbol
+  - CSV Version
+  - Rows
+  - Loaded Time
+- Basic inline fallback styles in `index.html`
+- Table horizontal scrolling
+- Reduced unnecessary `innerHTML` redraws
+- Safer ResearchHistory save handling
+- Safer localStorage reads for dashboard settings
+
+Not changed:
+
+- Analysis logic
+- Research logic
+- CSV schema
+- CSV compatibility
+- EA code
+- Trading conditions
+- AI API usage
+- Existing localStorage keys
 
 ---
 

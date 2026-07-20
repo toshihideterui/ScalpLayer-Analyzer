@@ -3,8 +3,26 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>ScalpLayer Research Lab v6.2</title>
+  <title>ScalpLayer Research Lab v6.2.1</title>
   <link rel="stylesheet" href="style.css">
+  <style>
+    body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; background: #07111f; color: #e8f5ff; }
+    .app-shell { display: grid; grid-template-columns: minmax(260px, 320px) 1fr; min-height: 100vh; }
+    .sidebar { padding: 24px; background: #081220; border-right: 1px solid #23405d; overflow: auto; }
+    .main { padding: 28px; min-width: 0; }
+    .card, .hero-card { border: 1px solid #23405d; border-radius: 16px; background: #0d1b2d; padding: 18px; margin-bottom: 16px; }
+    .tabs { display: grid; gap: 8px; }
+    .tab, button, input, select, textarea { font: inherit; }
+    .tab, .ghost-button { border: 1px solid #23405d; border-radius: 10px; padding: 10px 12px; background: #10243a; color: #e8f5ff; }
+    .tab.active { border-color: #39d8ff; }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+    .grid.two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+    .metric-grid, .research-strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+    .table-wrap { overflow-x: auto; }
+    canvas { max-width: 100%; min-height: 220px; }
+    @media (max-width: 920px) { .app-shell { grid-template-columns: 1fr; } .sidebar { position: static; max-height: none; } .grid.two { grid-template-columns: 1fr; } }
+  </style>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 </head>
 <body>
@@ -14,13 +32,13 @@
         <div class="brand-mark">SL</div>
         <div>
           <h1>ScalpLayer Research Lab</h1>
-          <p>Multi Symbol Foundation Edition v6.2</p>
+          <p>UI & Stability Edition v6.2.1</p>
         </div>
       </div>
 
       <label class="file-loader" for="csvFiles">
         <span>CSVファイルを読み込む</span>
-        <small>複数CSV対応</small>
+        <small>複数CSV選択に対応</small>
       </label>
       <input id="csvFiles" type="file" accept=".csv,text/csv" multiple>
 
@@ -41,9 +59,9 @@
         <button class="tab" data-tab="trade">取引</button>
         <button class="tab" data-tab="signal">シグナル</button>
         <button class="tab" data-tab="manager">CSV管理</button>
-        <button class="tab" data-tab="dataQuality">研究データ品質</button>
+        <button class="tab" data-tab="dataQuality">データ品質</button>
         <button class="tab" data-tab="crossCsv">CSV横断分析</button>
-        <button class="tab" data-tab="intelligence">研究インテリジェンス</button>
+        <button class="tab" data-tab="intelligence">研究候補</button>
         <button class="tab" data-tab="researchManager">研究管理</button>
         <button class="tab" data-tab="researchBoard">研究ボード</button>
         <button class="tab" data-tab="portfolio">研究ポートフォリオ</button>
@@ -75,7 +93,7 @@
         <div class="top-actions">
           <button id="promptButton" class="ghost-button">プロンプト作成</button>
           <button id="exportAllButton" class="ghost-button">一括エクスポート</button>
-          <button id="downloadReportButton" class="ghost-button">研究レポート.md</button>
+          <button id="downloadReportButton" class="ghost-button">ResearchReport.md</button>
           <button id="downloadHistoryButton" class="ghost-button">履歴JSON</button>
           <button id="resetButton" class="ghost-button">リセット</button>
         </div>
@@ -85,7 +103,7 @@
         <div class="hero-card">
           <span class="pill">研究ラボ ダッシュボード</span>
           <h3>ScalpLayer Projectの状態、研究対象、次の仮説を確認します。</h3>
-          <p>このツールはEAやCSVを書き換えません。出力済みCSVを研究候補へ整理するだけです。</p>
+          <p>このツールはEAやCSVを書き換えません。読み込んだCSVを研究候補へ整理するための分析ラボです。</p>
         </div>
         <div id="productivityBar" class="productivity-bar"></div>
         <div class="grid two dashboard-priority">
@@ -93,10 +111,7 @@
           <article class="card"><h3>スナップショット比較</h3><div id="snapshotComparePanel"></div></article>
         </div>
         <article class="card dashboard-customize-card">
-          <div class="card-head">
-            <h3>ダッシュボード設定</h3>
-            <span>localStorage</span>
-          </div>
+          <div class="card-head"><h3>ダッシュボード設定</h3><span>localStorage</span></div>
           <div id="dashboardCustomizePanel"></div>
         </article>
         <div id="dashboardCards" class="dashboard-cards">
@@ -114,11 +129,11 @@
         </div>
         <div class="metric-grid" id="dashboardMetrics"></div>
         <div class="grid two">
-          <article class="card"><div class="card-head"><h3>累積損益曲線</h3><span>TradeHistory</span></div><canvas id="equityChart"></canvas></article>
-          <article class="card"><div class="card-head"><h3>エンジン別損益</h3><span>ランキング</span></div><canvas id="engineProfitChart"></canvas></article>
+          <article class="card"><div class="card-head"><h3>累積損益</h3><span>TradeHistory</span></div><canvas id="equityChart"></canvas></article>
+          <article class="card"><div class="card-head"><h3>エンジン別利益</h3><span>ランキング</span></div><canvas id="engineProfitChart"></canvas></article>
         </div>
         <div class="grid two">
-          <article class="card"><h3>エンジン別損益ランキング</h3><div id="engineProfitRanking"></div></article>
+          <article class="card"><h3>エンジン別利益ランキング</h3><div id="engineProfitRanking"></div></article>
           <article class="card"><h3>時間帯・曜日サマリー</h3><div id="timeWeekSummary"></div></article>
         </div>
       </section>
@@ -145,7 +160,7 @@
       </section>
 
       <section class="tab-panel" id="engineDna">
-        <div class="section-head"><h3>エンジンDNA分析</h3><p>エンジンの特性、類似度、分類、強み、弱み、推移を確認します。EAやCSVは変更しません。</p></div>
+        <div class="section-head"><h3>エンジンDNA分析</h3><p>エンジンの特性、類似度、分類、強み、弱み、推移を確認します。</p></div>
         <div class="hero-card" id="engineDnaOverview"></div>
         <div class="metric-grid" id="engineDnaMetrics"></div>
         <article class="card"><h3>DNAプロファイル</h3><div id="engineDnaProfiles"></div></article>
@@ -182,7 +197,7 @@
 
       <section class="tab-panel" id="heatmap">
         <div class="section-head"><h3>TopNG・時間帯ヒートマップ</h3><p>色が濃いほど値が大きいことを示します。</p></div>
-        <article class="card"><h3>エンジン×NG条件</h3><div id="topNgHeatmap"></div></article>
+        <article class="card"><h3>エンジン × NG条件</h3><div id="topNgHeatmap"></div></article>
         <article class="card"><h3>時間帯ヒートマップ</h3><div id="sessionHeatmap"></div></article>
       </section>
 
@@ -197,7 +212,7 @@
       </section>
 
       <section class="tab-panel" id="nearmiss">
-        <div class="section-head"><h3>ニアミスインテリジェンス</h3><p>残りNG条件数とボトルネックの組み合わせで候補を分類します。</p></div>
+        <div class="section-head"><h3>ニアミスインテリジェンス</h3><p>残りNG条件数とボトルネックの組み合わせで候補を分析します。</p></div>
         <div class="grid two">
           <article class="card"><h3>ニアミス分類</h3><canvas id="nearMissChart"></canvas></article>
           <article class="card"><h3>最も惜しいエンジン</h3><div id="closestEngine"></div></article>
@@ -209,7 +224,7 @@
       </section>
 
       <section class="tab-panel" id="trade">
-        <div class="section-head"><h3>取引</h3><p>実際に約定した取引成績を確認します。</p></div>
+        <div class="section-head"><h3>取引分析</h3><p>実際に約定した取引成績を確認します。</p></div>
         <div class="grid two">
           <article class="card"><canvas id="tradeEngineChart"></canvas></article>
           <article class="card"><canvas id="weekdayChart"></canvas></article>
@@ -222,303 +237,302 @@
       </section>
 
       <section class="tab-panel" id="signal">
-        <div class="section-head"><h3>シグナル</h3><p>シグナル数とエントリー到達率を確認します。</p></div>
+        <div class="section-head"><h3>シグナル分析</h3><p>Signal LogからEngine別の発生数とEntry率を確認します。</p></div>
         <div class="grid two">
           <article class="card"><canvas id="signalChart"></canvas></article>
           <article class="card"><h3>シグナル概要</h3><div id="signalSummary"></div></article>
         </div>
-        <article class="card"><h3>エンジン別シグナル</h3><div id="signalTable"></div></article>
+        <article class="card"><h3>シグナルテーブル</h3><div id="signalTable"></div></article>
       </section>
 
       <section class="tab-panel" id="manager">
-        <div class="section-head"><h3>CSV管理</h3><p>読み込んだCSVの状態と対応バージョンを確認します。</p></div>
-        <article class="card"><h3>読み込み済みCSV</h3><div id="csvManagerTable"></div></article>
+        <div class="section-head"><h3>CSV管理</h3><p>読み込んだCSV、通貨ペア、行数、スキーマ、警告を確認します。</p></div>
+        <article class="card"><h3>CSV一覧</h3><div id="csvManagerTable"></div></article>
         <article class="card"><h3>CSV仕様</h3><div id="csvSpecTable"></div></article>
       </section>
 
       <section class="tab-panel" id="dataQuality">
-        <div class="section-head"><h3>研究データ品質</h3><p>読み込んだCSVが研究に十分な信頼性を持つか確認します。EAやCSVは変更しません。</p></div>
+        <div class="section-head"><h3>研究データ品質</h3><p>CSVの欠損、重複、偏り、鮮度を確認します。</p></div>
         <div class="hero-card" id="qualityOverview"></div>
         <div class="metric-grid" id="qualityMetrics"></div>
         <div class="grid two">
-          <article class="card"><h3>CSV健全性ダッシュボード</h3><div id="qualityCsvHealth"></div></article>
-          <article class="card"><h3>信頼度スコア</h3><div id="qualityConfidence"></div></article>
-        </div>
-        <article class="card"><h3>CSVカバー率</h3><div id="qualityCoverage"></div></article>
-        <div class="grid two">
-          <article class="card"><h3>不足データ分析</h3><div id="qualityMissing"></div></article>
-          <article class="card"><h3>重複分析</h3><div id="qualityDuplicates"></div></article>
+          <article class="card"><h3>警告</h3><div id="qualityWarnings"></div></article>
+          <article class="card"><h3>推奨確認</h3><div id="qualityRecommendations"></div></article>
         </div>
         <div class="grid two">
-          <article class="card"><h3>時間帯別データバランス</h3><div id="qualitySessionBalance"></div></article>
-          <article class="card"><h3>エンジンバランス</h3><div id="qualityEngineBalance"></div></article>
+          <article class="card"><h3>CSVヘルス</h3><div id="qualityCsvHealth"></div></article>
+          <article class="card"><h3>必須列不足</h3><div id="qualityMissing"></div></article>
         </div>
         <div class="grid two">
-          <article class="card"><h3>期間カバー・鮮度</h3><div id="qualityTimeFreshness"></div></article>
-          <article class="card"><h3>警告センター</h3><div id="qualityWarnings"></div></article>
+          <article class="card"><h3>重複</h3><div id="qualityDuplicates"></div></article>
+          <article class="card"><h3>時間鮮度</h3><div id="qualityTimeFreshness"></div></article>
         </div>
-        <article class="card"><h3>推奨</h3><div id="qualityRecommendations"></div></article>
+        <div class="grid two">
+          <article class="card"><h3>エンジン偏り</h3><div id="qualityEngineBalance"></div></article>
+          <article class="card"><h3>時間帯偏り</h3><div id="qualitySessionBalance"></div></article>
+        </div>
+        <div class="grid two">
+          <article class="card"><h3>カバレッジ</h3><div id="qualityCoverage"></div></article>
+          <article class="card"><h3>信頼度</h3><div id="qualityConfidence"></div></article>
+        </div>
       </section>
 
       <section class="tab-panel" id="crossCsv">
-        <div class="section-head"><h3>CSV横断インテリジェンス</h3><p>TradeHistory、NearMiss、Signal Log、Engine Activity、Session Researchの関係を確認します。EAやCSVは変更しません。</p></div>
+        <div class="section-head"><h3>CSV横断インテリジェンス</h3><p>TradeHistory、NearMiss、EngineActivity、Signalを横断して関係性を確認します。</p></div>
         <div class="hero-card" id="crossOverview"></div>
         <div class="metric-grid" id="crossMetrics"></div>
-        <article class="card"><h3>パフォーマンス</h3><div id="crossPerformance"></div></article>
         <div class="grid two">
           <article class="card"><h3>エンジン相関</h3><div id="crossEngineCorrelation"></div></article>
           <article class="card"><h3>時間帯相関</h3><div id="crossSessionCorrelation"></div></article>
         </div>
         <div class="grid two">
-          <article class="card"><h3>シグナル相関</h3><div id="crossSignalCorrelation"></div></article>
-          <article class="card"><h3>ニアミス相関</h3><div id="crossNearMissCorrelation"></div></article>
+          <article class="card"><h3>NearMiss相関</h3><div id="crossNearMissCorrelation"></div></article>
+          <article class="card"><h3>Signal相関</h3><div id="crossSignalCorrelation"></div></article>
         </div>
-        <article class="card"><h3>研究機会マトリクス</h3><div id="crossOpportunityMatrix"></div></article>
-        <div class="grid two">
-          <article class="card"><h3>横断分析の推奨</h3><div id="crossRecommendations"></div></article>
-          <article class="card"><h3>横断分析の警告</h3><div id="crossWarnings"></div></article>
-        </div>
+        <article class="card"><h3>機会マトリクス</h3><div id="crossOpportunityMatrix"></div></article>
+        <article class="card"><h3>横断Research候補</h3><div id="crossRecommendations"></div></article>
+        <article class="card"><h3>注意事項</h3><div id="crossWarnings"></div></article>
+        <article class="card"><h3>パフォーマンス</h3><div id="crossPerformance"></div></article>
       </section>
 
       <section class="tab-panel" id="intelligence">
-        <div class="section-head"><h3>研究インテリジェンス</h3><p>CSVから生成した研究候補です。売買条件の直接変更ではありません。</p></div>
-        <div id="intelligenceHero" class="hero-card"></div>
-        <div id="researchSuggestions" class="suggestion-list"></div>
-        <article class="card"><h3>AI向けプロンプト作成</h3><textarea id="chatgptPrompt" readonly></textarea></article>
+        <div class="section-head"><h3>研究候補</h3><p>次に見るべきResearch候補をルールベースで提示します。</p></div>
+        <div class="recommendation-card" id="intelligenceHero"></div>
+        <article class="card"><h3>研究候補ランキング</h3><div id="researchSuggestions"></div></article>
+        <article class="card"><h3>ChatGPT依頼文</h3><textarea id="chatgptPrompt" rows="16"></textarea></article>
       </section>
 
       <section class="tab-panel" id="researchManager">
-        <div class="section-head"><h3>研究管理</h3><p>研究候補を研究項目として管理します。採用してもEAコードは変更しません。</p></div>
+        <div class="section-head"><h3>研究管理</h3><p>Research候補を仮説、検証、判断へつなげます。</p></div>
         <div class="grid two">
           <article class="card">
             <h3>研究を作成</h3>
             <div class="form-grid">
               <label>テンプレート<select id="researchTemplate"></select></label>
-              <label>タイトル<input id="researchTitle" type="text" placeholder="研究タイトル"></label>
+              <label>タイトル<input id="researchTitle" type="text"></label>
               <label>カテゴリ<select id="researchCategory"></select></label>
-              <label>状態<select id="researchStatus"></select></label>
               <label>優先度<select id="researchPriority"></select></label>
-              <label>エンジン<input id="researchEngine" type="text" placeholder="エンジン"></label>
-              <label>条件<input id="researchCondition" type="text" placeholder="条件"></label>
-              <label>時間帯<input id="researchSession" type="text" placeholder="時間帯"></label>
+              <label>エンジン<input id="researchEngine" type="text"></label>
+              <label>条件<input id="researchCondition" type="text"></label>
+              <label>時間帯<input id="researchSession" type="text"></label>
             </div>
-            <label>仮説<textarea id="researchHypothesis" placeholder="研究仮説"></textarea></label>
-            <label>検証計画<textarea id="researchValidationPlan" placeholder="検証計画"></textarea></label>
-            <div class="memo-actions">
-              <button id="createResearchButton" class="ghost-button">研究を作成</button>
-              <button id="exportResearchManagerButton" class="ghost-button">JSONを書き出し</button>
-              <label class="ghost-button import-label">JSONを読み込み<input id="importResearchManagerInput" type="file" accept=".json,application/json"></label>
-            </div>
+            <label>仮説<textarea id="researchHypothesis" rows="4"></textarea></label>
+            <label>検証計画<textarea id="researchValidationPlan" rows="4"></textarea></label>
+            <button id="createResearchButton" class="ghost-button">研究を追加</button>
           </article>
           <article class="card">
-            <h3>研究詳細</h3>
-            <div id="researchDetail"></div>
-          </article>
-        </div>
-        <article class="card">
-          <h3>研究一覧</h3>
+            <h3>研究フィルター</h3>
             <div class="form-grid compact">
-              <label>状態<select id="filterResearchStatus"></select></label>
+              <label>検索<input id="researchSearch" type="search"></label>
+              <label>ステータス<select id="filterResearchStatus"></select></label>
               <label>カテゴリ<select id="filterResearchCategory"></select></label>
-              <label>判定<select id="filterResearchDecision"></select></label>
               <label>優先度<select id="filterResearchPriority"></select></label>
               <label>信頼度<select id="filterResearchConfidence"></select></label>
-              <label>健全性<select id="filterResearchHealth"></select></label>
-              <label>検索<input id="researchSearch" type="text" placeholder="検索"></label>
+              <label>健康状態<select id="filterResearchHealth"></select></label>
+              <label>判断<select id="filterResearchDecision"></select></label>
             </div>
-          <div id="researchList"></div>
-        </article>
+            <button id="exportResearchManagerButton" class="ghost-button">研究管理をエクスポート</button>
+            <label class="ghost-button">研究管理をインポート<input id="importResearchManagerInput" type="file" accept=".json,application/json" hidden></label>
+          </article>
+        </div>
+        <div class="grid two">
+          <article class="card"><h3>研究一覧</h3><div id="researchList"></div></article>
+          <article class="card"><h3>研究詳細</h3><div id="researchDetail"></div></article>
+        </div>
+        <article class="card"><h3>研究ネットワーク</h3><div id="researchNetwork"></div></article>
       </section>
 
       <section class="tab-panel" id="researchBoard">
-        <div class="section-head"><h3>研究ボード</h3><p>カンバン形式のワークフローです。状態ボタンで項目を移動します。</p></div>
-        <div id="researchBoardView" class="board"></div>
+        <div class="section-head"><h3>研究ボード</h3><p>研究タスクの状態をボードで確認します。</p></div>
+        <article class="card"><div id="researchBoardView"></div></article>
       </section>
 
       <section class="tab-panel" id="portfolio">
-        <div class="section-head"><h3>研究ポートフォリオ</h3><p>ポートフォリオの健全性、優先度マトリクス、停滞項目、次の推奨研究を確認します。</p></div>
-        <div id="portfolioMetrics" class="metric-grid"></div>
+        <div class="section-head"><h3>研究ポートフォリオ</h3><p>研究全体の偏り、停滞、次の優先対象を確認します。</p></div>
+        <div class="metric-grid" id="portfolioMetrics"></div>
         <div class="grid two">
-          <article class="card"><h3>優先度マトリクス</h3><div id="priorityMatrix"></div></article>
-          <article class="card"><h3>次の推奨研究</h3><div id="nextResearchRecommendation"></div></article>
+          <article class="card"><h3>研究キュー</h3><div id="researchQueue"></div></article>
+          <article class="card"><h3>次のResearch候補</h3><div id="nextResearchRecommendation"></div></article>
         </div>
-        <article class="card"><h3>停滞中の研究</h3><div id="staleResearchTable"></div></article>
+        <article class="card"><h3>停滞している研究</h3><div id="staleResearchTable"></div></article>
       </section>
 
       <section class="tab-panel" id="workspace">
-        <div class="section-head"><h3>研究ワークスペース</h3><p>今日の注目、研究キュー、ブックマーク、固定項目、最近の活動、メモを管理します。研究専用です。</p></div>
+        <div class="section-head"><h3>研究ワークスペース</h3><p>今日見るべき研究、ブックマーク、固定項目、最近の活動を確認します。</p></div>
         <div class="hero-card" id="workspaceOverview"></div>
         <div class="metric-grid" id="workspaceMetrics"></div>
         <div class="grid two">
-          <article class="card"><h3>今日の注目 Top3</h3><div id="todaysFocus"></div></article>
-          <article class="card"><h3>ワークスペースメモ</h3><textarea id="workspaceMemo" placeholder="研究メモを入力してください。この内容はlocalStorageにのみ保存され、Analyzer Snapshotには含まれません。"></textarea><div class="memo-actions"><button id="saveWorkspaceMemoButton" class="ghost-button">メモを保存</button><span id="workspaceMemoStatus"></span></div></article>
-        </div>
-        <article class="card"><h3>研究キュー</h3><div id="researchQueue"></div></article>
-        <div class="grid two">
+          <article class="card"><h3>今日のフォーカス</h3><div id="todaysFocus"></div></article>
           <article class="card"><h3>ブックマーク</h3><div id="workspaceBookmarks"></div></article>
-          <article class="card"><h3>固定項目</h3><div id="workspacePins"></div></article>
         </div>
-        <article class="card"><h3>最近の活動</h3><div id="workspaceRecentActivity"></div></article>
+        <div class="grid two">
+          <article class="card"><h3>固定項目</h3><div id="workspacePins"></div></article>
+          <article class="card"><h3>最近の活動</h3><div id="workspaceRecentActivity"></div></article>
+        </div>
+        <article class="card"><h3>ワークスペースメモ</h3><textarea id="workspaceMemo" rows="8"></textarea><button id="saveWorkspaceMemoButton" class="ghost-button">保存</button><span id="workspaceMemoStatus"></span></article>
       </section>
 
       <section class="tab-panel" id="hypothesis">
-        <div class="section-head"><h3>研究仮説</h3><p>仮説、証拠、信頼度、矛盾、未解決項目、研究フローを確認します。研究専用です。</p></div>
+        <div class="section-head"><h3>研究仮説</h3><p>仮説、証拠、矛盾、未解決の問いを整理します。</p></div>
         <div class="hero-card" id="hypothesisOverview"></div>
         <div class="metric-grid" id="hypothesisMetrics"></div>
-        <article class="card"><h3>スコア2.0 / 検証準備度</h3><div id="hypothesisScore2Table"></div></article>
-        <article class="card"><h3>研究フロー</h3><div id="hypothesisFlow"></div></article>
         <article class="card"><h3>仮説一覧</h3><div id="hypothesisList"></div></article>
         <div class="grid two">
-          <article class="card"><h3>証拠サマリー</h3><div id="evidenceSummary"></div></article>
-          <article class="card"><h3>未解決項目</h3><div id="openQuestions"></div></article>
+          <article class="card"><h3>Evidence Summary</h3><div id="evidenceSummary"></div></article>
+          <article class="card"><h3>矛盾</h3><div id="hypothesisContradictions"></div></article>
         </div>
-        <article class="card"><h3>矛盾</h3><div id="hypothesisContradictions"></div></article>
+        <div class="grid two">
+          <article class="card"><h3>Open Questions</h3><div id="openQuestions"></div></article>
+          <article class="card"><h3>Research Flow</h3><div id="hypothesisFlow"></div></article>
+        </div>
+        <article class="card"><h3>仮説タイムライン</h3><div id="hypothesisTimeline"></div></article>
       </section>
 
       <section class="tab-panel" id="lineage">
-        <div class="section-head"><h3>仮説系譜</h3><p>仮説の関係、証拠重み、履歴、準備度、比較を確認します。研究専用です。</p></div>
+        <div class="section-head"><h3>仮説系譜</h3><p>仮説同士の関係、証拠の重み、検証準備度を確認します。</p></div>
         <div class="hero-card" id="lineageOverview"></div>
         <div class="metric-grid" id="lineageMetrics"></div>
         <article class="card">
-          <h3>系譜関係エディタ</h3>
+          <h3>仮説関係を追加</h3>
           <div class="form-grid compact">
-            <label>元の仮説<select id="lineageSource"></select></label>
-            <label>関係タイプ<select id="lineageType"></select></label>
-            <label>対象の仮説<select id="lineageTarget"></select></label>
-            <label>メモ<input id="lineageNote" type="text" placeholder="関係メモ"></label>
+            <label>Source<select id="lineageSource"></select></label>
+            <label>Target<select id="lineageTarget"></select></label>
+            <label>Type<select id="lineageType"></select></label>
+            <label>Note<input id="lineageNote" type="text"></label>
           </div>
-          <div class="memo-actions"><button id="addLineageRelationButton" class="ghost-button">関係を追加</button><span id="lineageRelationStatus"></span></div>
+          <button id="addLineageRelationButton" class="ghost-button">関係を追加</button>
+          <div id="lineageRelationStatus"></div>
         </article>
+        <article class="card"><h3>関係一覧</h3><div id="lineageRelations"></div></article>
         <div class="grid two">
-          <article class="card"><h3>仮説ネットワーク</h3><div id="lineageNetwork"></div></article>
-          <article class="card"><h3>系譜統計</h3><div id="lineageStatistics"></div></article>
+          <article class="card"><h3>仮説ファミリー</h3><div id="lineageFamilies"></div></article>
+          <article class="card"><h3>系譜ネットワーク</h3><div id="lineageNetwork"></div></article>
         </div>
-        <article class="card"><h3>仮説関係</h3><div id="lineageRelations"></div></article>
-        <article class="card"><h3>仮説ファミリー</h3><div id="lineageFamilies"></div></article>
         <div class="grid two">
-          <article class="card"><h3>証拠重み設定</h3><div id="evidenceWeightSettings"></div></article>
-          <article class="card"><h3>重み付き証拠サマリー</h3><div id="weightedEvidenceSummary"></div></article>
+          <article class="card"><h3>証拠の重み</h3><div id="weightedEvidenceSummary"></div><div id="evidenceWeightSettings"></div><button id="saveEvidenceWeightsButton" class="ghost-button">保存</button><button id="resetEvidenceWeightsButton" class="ghost-button">リセット</button></article>
+          <article class="card"><h3>仮説スコア2.0</h3><div id="hypothesisScore2Table"></div></article>
         </div>
-        <article class="card"><h3>検証準備度</h3><div id="validationReadinessTable"></div></article>
         <div class="grid two">
-          <article class="card"><h3>重複候補</h3><div id="duplicateHypotheses"></div></article>
+          <article class="card"><h3>仮説信頼度2.0</h3><div id="hypothesisCompare"></div><select id="compareHypothesisA"></select><select id="compareHypothesisB"></select></article>
+          <article class="card"><h3>検証準備度</h3><div id="validationReadinessTable"></div></article>
+        </div>
+        <div class="grid two">
+          <article class="card"><h3>重複仮説</h3><div id="duplicateHypotheses"></div></article>
           <article class="card"><h3>孤立仮説</h3><div id="orphanHypotheses"></div></article>
         </div>
         <article class="card"><h3>置き換え済み仮説</h3><div id="supersededHypotheses"></div></article>
-        <article class="card">
-          <h3>仮説比較</h3>
-          <div class="form-grid compact">
-            <label>仮説A<select id="compareHypothesisA"></select></label>
-            <label>仮説B<select id="compareHypothesisB"></select></label>
-          </div>
-          <div id="hypothesisCompare"></div>
-        </article>
-        <article class="card"><h3>仮説活動タイムライン</h3><div id="hypothesisTimeline"></div></article>
       </section>
 
       <section class="tab-panel" id="strategy">
-        <div class="section-head"><h3>研究戦略</h3><p>次に行うべき研究の優先順位を整理します。研究専用で、EA・CSV・売買条件は変更しません。</p></div>
+        <div class="section-head"><h3>研究戦略</h3><p>研究優先度、ROI、ロードマップ、重複、欠落、ブロッカーを確認します。</p></div>
         <div class="hero-card" id="strategyOverview"></div>
         <div class="metric-grid" id="strategyMetrics"></div>
         <div class="grid two">
           <article class="card"><h3>優先度マトリクス</h3><div id="strategyPriorityMatrix"></div></article>
-          <article class="card"><h3>研究ROI</h3><div id="strategyRoiTable"></div></article>
+          <article class="card"><h3>Research ROI</h3><div id="strategyRoiTable"></div></article>
         </div>
         <div class="grid two">
-          <article class="card"><h3>研究カバー率</h3><div id="strategyCoverage"></div></article>
-          <article class="card"><h3>現在の阻害要因</h3><div id="strategyBlockers"></div></article>
+          <article class="card"><h3>カバレッジ</h3><div id="strategyCoverage"></div></article>
+          <article class="card"><h3>ロードマップ</h3><div id="strategyRoadmap"></div></article>
         </div>
         <div class="grid two">
-          <article class="card"><h3>短期改善候補 Top10</h3><div id="strategyQuickWin"></div></article>
-          <article class="card"><h3>長期研究候補 Top10</h3><div id="strategyLongProject"></div></article>
+          <article class="card"><h3>Quick Win</h3><div id="strategyQuickWin"></div></article>
+          <article class="card"><h3>Long Project</h3><div id="strategyLongProject"></div></article>
         </div>
-        <article class="card"><h3>研究ロードマップ</h3><div id="strategyRoadmap"></div></article>
         <div class="grid two">
           <article class="card"><h3>重複研究</h3><div id="strategyDuplicate"></div></article>
-          <article class="card"><h3>不足している研究</h3><div id="strategyMissing"></div></article>
+          <article class="card"><h3>不足研究</h3><div id="strategyMissing"></div></article>
         </div>
         <div class="grid two">
-          <article class="card"><h3>依存関係分析</h3><div id="strategyDependencies"></div></article>
-          <article class="card"><h3>研究ヒートマップ</h3><div id="strategyHeatmap"></div></article>
+          <article class="card"><h3>依存関係</h3><div id="strategyDependencies"></div></article>
+          <article class="card"><h3>ブロッカー</h3><div id="strategyBlockers"></div></article>
         </div>
+        <article class="card"><h3>研究戦略ヒートマップ</h3><div id="strategyHeatmap"></div></article>
       </section>
 
       <section class="tab-panel" id="search">
-        <div class="section-head"><h3>高速検索</h3><p>研究、仮説、ナレッジグラフ、TopNG、エンジン情報を検索します。研究専用です。</p></div>
+        <div class="section-head"><h3>高速検索</h3><p>Research、Hypothesis、Knowledge Graph、TopNG、Engineを横断検索します。</p></div>
         <article class="card">
-          <label>検索キーワード<input id="globalSearchInput" type="text" placeholder="例：Core Rule E、RSI、ATR、東京、Candidate G"></label>
-          <div class="memo-actions">
+          <div class="search-row">
+            <input id="globalSearchInput" type="search" placeholder="検索キーワードを入力">
             <button id="clearSearchButton" class="ghost-button">クリア</button>
-            <span id="globalSearchStatus"></span>
           </div>
+          <p id="globalSearchStatus"></p>
+          <div id="globalSearchResults"></div>
         </article>
-        <article class="card"><h3>検索結果</h3><div id="globalSearchResults"></div></article>
       </section>
 
       <section class="tab-panel" id="brain">
-        <div class="section-head"><h3>AI研究ブレイン</h3><p>ルールベースの研究アドバイザーです。AI API、EA書き換え、CSV書き換えは行いません。</p></div>
+        <div class="section-head"><h3>AI研究ブレイン</h3><p>ルールベースで研究全体を要約します。AI APIは使用しません。</p></div>
         <div class="hero-card" id="brainOverview"></div>
+        <div class="metric-grid" id="brainOverviewMetrics"></div>
+        <article class="card"><h3>ブレイン概要</h3><div id="brainSummary"></div></article>
         <div class="grid two">
-          <article class="card"><h3>今日の研究 Top5</h3><div id="brainRecommendations"></div></article>
-          <article class="card"><h3>研究概要</h3><div id="brainOverviewMetrics"></div></article>
+          <article class="card"><h3>洞察</h3><div id="brainInsights"></div></article>
+          <article class="card"><h3>推奨</h3><div id="brainRecommendations"></div></article>
         </div>
-        <article class="card"><h3>パフォーマンス状態</h3><div id="brainPerformance"></div></article>
         <div class="grid two">
-          <article class="card"><h3>研究ボトルネック</h3><div id="brainBottlenecks"></div></article>
-          <article class="card"><h3>必要データ予測</h3><div id="brainRequiredData"></div></article>
+          <article class="card"><h3>リスク</h3><div id="brainRisks"></div></article>
+          <article class="card"><h3>必要データ</h3><div id="brainRequiredData"></div></article>
         </div>
-        <article class="card"><h3>研究優先度ランキング</h3><div id="brainPriorityRanking"></div></article>
+        <div class="grid two">
+          <article class="card"><h3>ボトルネック</h3><div id="brainBottlenecks"></div></article>
+          <article class="card"><h3>優先ランキング</h3><div id="brainPriorityRanking"></div></article>
+        </div>
         <div class="grid two">
           <article class="card"><h3>研究ロードマップ</h3><div id="brainRoadmap"></div></article>
-          <article class="card"><h3>研究タイムライン2.0</h3><canvas id="brainTimelineChart"></canvas></article>
-        </div>
-        <article class="card"><h3>ナレッジグラフ洞察</h3><div id="brainKnowledgeGraph"></div></article>
-        <article class="card"><h3>ワークスペース概要</h3><div id="brainWorkspaceSummary"></div></article>
-        <article class="card"><h3>仮説サマリー</h3><div id="brainHypothesisSummary"></div></article>
-        <article class="card"><h3>仮説系譜サマリー</h3><div id="brainLineageSummary"></div></article>
-        <article class="card"><h3>研究戦略サマリー</h3><div id="brainStrategySummary"></div></article>
-        <div class="grid two">
-          <article class="card"><h3>研究品質統計</h3><div id="brainStatistics"></div></article>
-          <article class="card"><h3>研究リスク</h3><div id="brainRisks"></div></article>
+          <article class="card"><h3>クラスタ</h3><div id="brainClusters"></div></article>
         </div>
         <div class="grid two">
-          <article class="card"><h3>ナレッジベース</h3><div id="brainKnowledge"></div></article>
-          <article class="card"><h3>研究クラスタ</h3><div id="brainClusters"></div></article>
+          <article class="card"><h3>統計</h3><div id="brainStatistics"></div></article>
+          <article class="card"><h3>パフォーマンス</h3><div id="brainPerformance"></div></article>
         </div>
-        <article class="card"><h3>研究洞察</h3><div id="brainInsights"></div></article>
-        <article class="card"><h3>週次・月次サマリー</h3><div id="brainSummary"></div></article>
+        <div class="grid two">
+          <article class="card"><h3>ナレッジ</h3><div id="brainKnowledge"></div></article>
+          <article class="card"><h3>ナレッジグラフ</h3><div id="brainKnowledgeGraph"></div></article>
+        </div>
+        <div class="grid two">
+          <article class="card"><h3>ワークスペース</h3><div id="brainWorkspaceSummary"></div></article>
+          <article class="card"><h3>仮説</h3><div id="brainHypothesisSummary"></div></article>
+        </div>
+        <div class="grid two">
+          <article class="card"><h3>系譜</h3><div id="brainLineageSummary"></div></article>
+          <article class="card"><h3>戦略</h3><div id="brainStrategySummary"></div></article>
+        </div>
+        <article class="card"><h3>タイムライン</h3><canvas id="brainTimelineChart"></canvas></article>
       </section>
 
       <section class="tab-panel" id="knowledgeGraph">
-        <div class="section-head"><h3>研究ナレッジグラフ</h3><p>エンジン、条件、時間帯、TopNG、研究、フローの関係を確認します。研究専用で、EAやCSVは変更しません。</p></div>
+        <div class="section-head"><h3>ナレッジグラフ</h3><p>Engine、Condition、TopNG、Research、Hypothesisの関係を可視化します。</p></div>
         <div class="hero-card" id="knowledgeOverview"></div>
         <div class="metric-grid" id="knowledgeMetrics"></div>
-        <article class="card"><h3>ナレッジグラフ</h3><div id="knowledgeGraphView"></div></article>
+        <article class="card"><h3>グラフ</h3><div id="knowledgeGraphView"></div></article>
+        <div class="grid two">
+          <article class="card"><h3>統計</h3><div id="graphStatistics"></div></article>
+          <article class="card"><h3>依存グラフ</h3><div id="dependencyGraph"></div></article>
+        </div>
         <div class="grid two">
           <article class="card"><h3>エンジンネットワーク</h3><div id="engineNetwork"></div></article>
-          <article class="card"><h3>研究ネットワーク</h3><div id="researchNetwork"></div></article>
-        </div>
-        <div class="grid two">
-          <article class="card"><h3>クラスタツリー</h3><div id="clusterTree"></div></article>
-          <article class="card"><h3>研究機会フロー</h3><div id="opportunityFlow"></div></article>
-        </div>
-        <div class="grid two">
-          <article class="card"><h3>時間帯フロー</h3><div id="sessionFlow"></div></article>
           <article class="card"><h3>TopNGネットワーク</h3><div id="topNgNetwork"></div></article>
         </div>
         <div class="grid two">
-          <article class="card"><h3>依存関係グラフ</h3><div id="dependencyGraph"></div></article>
-          <article class="card"><h3>統計</h3><div id="graphStatistics"></div></article>
+          <article class="card"><h3>時間帯フロー</h3><div id="sessionFlow"></div></article>
+          <article class="card"><h3>機会フロー</h3><div id="opportunityFlow"></div></article>
         </div>
+        <article class="card"><h3>クラスタツリー</h3><div id="clusterTree"></div></article>
       </section>
 
       <section class="tab-panel" id="timeline">
-        <div class="section-head"><h3>研究タイムライン・トレンド分析</h3><p>長期的な研究推移、ベスト/ワーストのスナップショット、マイルストーン、イベントを確認します。</p></div>
+        <div class="section-head"><h3>研究タイムライン</h3><p>ResearchHistoryから進捗、マイルストーン、改善傾向を確認します。</p></div>
         <div class="hero-card" id="trendOverview"></div>
         <div class="metric-grid" id="trendMetrics"></div>
         <div class="grid two">
-          <article class="card"><h3>トレンドチャート</h3><canvas id="timelineChart"></canvas></article>
-          <article class="card"><h3>改善分析</h3><div id="trendImprovement"></div></article>
+          <article class="card"><h3>タイムライン</h3><canvas id="timelineChart"></canvas></article>
+          <article class="card"><h3>改善傾向</h3><div id="trendImprovement"></div></article>
+        </div>
+        <div class="grid two">
+          <article class="card"><h3>マイルストーン</h3><div id="trendMilestones"></div></article>
+          <article class="card"><h3>推奨</h3><div id="trendRecommendations"></div></article>
         </div>
         <div class="grid two">
           <article class="card"><h3>長期トレンド</h3><div id="longTermTrend"></div></article>
@@ -528,19 +542,17 @@
           <article class="card"><h3>ベストスナップショット</h3><div id="bestSnapshot"></div></article>
           <article class="card"><h3>ワーストスナップショット</h3><div id="worstSnapshot"></div></article>
         </div>
-        <div class="grid two">
-          <article class="card"><h3>マイルストーン</h3><div id="trendMilestones"></div></article>
-          <article class="card"><h3>トレンド推奨</h3><div id="trendRecommendations"></div></article>
-        </div>
-        <article class="card"><h3>研究履歴比較</h3><div id="historyCompare"></div></article>
-        <article class="card"><h3>タイムラインイベント</h3><div id="timelineEvents"></div></article>
+        <article class="card"><h3>履歴比較</h3><div id="historyCompare"></div></article>
+        <article class="card"><h3>イベント</h3><div id="timelineEvents"></div></article>
         <article class="card"><h3>エンジン推移</h3><div id="engineEvolution"></div></article>
-        <article class="card">
-          <h3>研究メモ</h3>
-          <textarea id="researchMemo" placeholder="例：2026/07/18 Core Rule EのNearMissが増加。RSI研究を予定。"></textarea>
-          <div class="memo-actions"><button id="saveMemoButton" class="ghost-button">メモを保存</button><span id="memoStatus"></span></div>
-        </article>
       </section>
+
+      <article class="card">
+        <h3>研究メモ</h3>
+        <textarea id="researchMemo" rows="8"></textarea>
+        <button id="saveMemoButton" class="ghost-button">メモを保存</button>
+        <span id="memoStatus"></span>
+      </article>
     </main>
   </div>
 

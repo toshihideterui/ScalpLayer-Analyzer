@@ -1,7 +1,7 @@
 ﻿const engine = new AnalysisEngine();
 let charts = {};
 const virtualTableState = {};
-const PRODUCTIVITY_VERSION = "6.1";
+const PRODUCTIVITY_VERSION = "6.2.1";
 const DASHBOARD_CARD_CONFIG_KEY = "scalplayer_dashboard_cards_v61";
 const FAVORITE_ENGINE_KEY = "scalplayer_favorite_engine_v61";
 const SEARCH_QUERY_KEY = "scalplayer_fast_search_query_v61";
@@ -86,7 +86,7 @@ function setupButtons() {
   on("downloadReportButton", "click", downloadMarkdownReport);
   on("exportAllButton", "click", exportAllResearch);
   on("globalSearchInput", "input", (event) => {
-    localStorage.setItem(SEARCH_QUERY_KEY, event.target.value || "");
+    safeStorageSet(SEARCH_QUERY_KEY, event.target.value || "");
     renderSearch();
   });
   on("clearSearchButton", "click", () => {
@@ -249,7 +249,7 @@ function renderDashboard() {
   if (strategy) engine.results.researchStrategy = strategy;
   const currentSymbol = engine.getCurrentSymbol?.() || "USDJPY";
   setHtml("labDashboard", [
-    researchItem("現在の通貨ペア", currentSymbol, "Multi Symbol Foundation"),
+    researchItem("現在の通貨 / Current Symbol", currentSymbol, "Multi Symbol Foundation"),
     researchItem("最良エンジン", bestEngine, "現在の取引成績が最も高いエンジン"),
     researchItem("最も活発なエンジン", mostActive, "稼働状況から見た研究スコアが最も高いエンジン"),
     researchItem("現在の研究対象", target, engine.results.intelligence[0]?.target || "CSVを読み込んでください")
@@ -355,7 +355,7 @@ function productivityBarHtml() {
 
 function getDashboardCards() {
   let saved = [];
-  try { saved = JSON.parse(localStorage.getItem(DASHBOARD_CARD_CONFIG_KEY) || "[]"); } catch { saved = []; }
+  try { saved = JSON.parse(safeStorageGet(DASHBOARD_CARD_CONFIG_KEY, "[]") || "[]"); } catch { saved = []; }
   const bySaved = new Map(saved.map((x) => [x.id, x]));
   const merged = DEFAULT_DASHBOARD_CARDS.map((card) => ({ ...card, ...(bySaved.get(card.id) || {}) }));
   const savedIds = new Set(saved.map((x) => x.id));
@@ -364,7 +364,7 @@ function getDashboardCards() {
 }
 
 function saveDashboardCards(cards) {
-  localStorage.setItem(DASHBOARD_CARD_CONFIG_KEY, JSON.stringify(cards));
+  safeStorageSet(DASHBOARD_CARD_CONFIG_KEY, JSON.stringify(cards));
 }
 
 function updateDashboardCard(id, patch) {
@@ -405,11 +405,11 @@ function getEngineNames() {
 }
 
 function getFavoriteEngine() {
-  return localStorage.getItem(FAVORITE_ENGINE_KEY) || getEngineNames()[0] || "";
+  return safeStorageGet(FAVORITE_ENGINE_KEY, "") || getEngineNames()[0] || "";
 }
 
 function setFavoriteEngine(name) {
-  if (name) localStorage.setItem(FAVORITE_ENGINE_KEY, name);
+  if (name) safeStorageSet(FAVORITE_ENGINE_KEY, name);
 }
 
 function getEngineSummary(name) {
@@ -911,7 +911,7 @@ function researchHeatmapHtml(rows) {
 function renderSearch() {
   if (!byId("globalSearchResults")) return;
   const input = byId("globalSearchInput");
-  const stored = localStorage.getItem(SEARCH_QUERY_KEY) || "";
+  const stored = safeStorageGet(SEARCH_QUERY_KEY, "") || "";
   if (input && input.value !== stored) input.value = stored;
   const query = (input?.value || stored || "").trim();
   const index = buildSearchIndex();
@@ -1121,7 +1121,7 @@ function renderSignal() {
 }
 
 function renderManager() {
-  setHtml("csvManagerTable", table(["CSV", "存在", "通貨ペア", "行数", "列数", "検出タイプ", "方式", "スキーマ", "元の列", "正規化列", "適用エイリアス", "検証", "警告"], engine.results.csvManager.map((x) => [x.label, x.exists ? "あり" : "なし", x.symbols || "USDJPY", x.rows, x.columns, x.detectedType || "-", x.detectionMethod || "-", x.schemaVersion || x.version, x.originalColumns || "-", x.normalizedColumns || "-", x.aliasesApplied || "-", x.validation, x.warnings.join(" / ") || "-"])));
+  setHtml("csvManagerTable", table(["CSV", "存在", "Symbol", "CSV Version", "Rows", "Loaded Time", "列数", "検出タイプ", "方式", "検証", "警告"], engine.results.csvManager.map((x) => [x.label, x.exists ? "あり" : "なし", x.symbols || "USDJPY", x.schemaVersion || x.version, x.rows, formatDateTime(x.updated), x.columns, x.detectedType || "-", x.detectionMethod || "-", x.validation, x.warnings.join(" / ") || "-"])));
   setHtml("csvSpecTable", table(["CSV", "用途", "画面"], CSV_TYPES.map((x) => [x.label, x.description, x.usage])));
 }
 
@@ -1818,14 +1818,14 @@ function table(headers, rows) {
   const useVirtual = rows.length > 1000;
   const limit = useVirtual ? Math.min(rows.length, virtualTableState[key] || 100) : rows.length;
   const visibleRows = rows.slice(0, limit);
-  const body = `<table><thead><tr>${headers.map((h) => `<th>${escapeHtml(h)}</th>`).join("")}</tr></thead><tbody>${visibleRows.map((row) => `<tr>${row.map((v) => `<td>${escapeHtml(v)}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
+  const body = `<div class="table-wrap"><table><thead><tr>${headers.map((h) => `<th>${escapeHtml(h)}</th>`).join("")}</tr></thead><tbody>${visibleRows.map((row) => `<tr>${row.map((v) => `<td>${escapeHtml(v)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
   if (!useVirtual || limit >= rows.length) return body;
   return `${body}<div class="table-more"><span>${limit} / ${rows.length}件を表示中</span><button class="mini-button load-more-table" data-table-key="${escapeHtml(key)}" data-next-limit="${Math.min(rows.length, limit + 100)}">さらに表示</button></div>`;
 }
 
 function rawTable(headers, rows) {
   if (!rows.length) return `<div class="empty">データがありません。</div>`;
-  return `<table><thead><tr>${headers.map((h) => `<th>${escapeHtml(h)}</th>`).join("")}</tr></thead><tbody>${rows.map((row) => `<tr>${row.map((v, i) => `<td>${i === 0 ? escapeHtml(v) : v}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
+  return `<div class="table-wrap"><table><thead><tr>${headers.map((h) => `<th>${escapeHtml(h)}</th>`).join("")}</tr></thead><tbody>${rows.map((row) => `<tr>${row.map((v, i) => `<td>${i === 0 ? escapeHtml(v) : v}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
 }
 
 function virtualTableKey(headers, length) {
@@ -1835,10 +1835,10 @@ function virtualTableKey(headers, length) {
 function heatmapTable(headers, rows) {
   if (!rows.length) return `<div class="empty">ヒートマップデータがありません。</div>`;
   const maxValue = Math.max(1, ...rows.flat().slice(1).map((v) => Number(v) || 0));
-  return `<table class="heatmap"><thead><tr>${headers.map((h) => `<th>${escapeHtml(h)}</th>`).join("")}</tr></thead><tbody>${rows.map((row) => `<tr>${row.map((v, i) => {
+  return `<div class="table-wrap"><table class="heatmap"><thead><tr>${headers.map((h) => `<th>${escapeHtml(h)}</th>`).join("")}</tr></thead><tbody>${rows.map((row) => `<tr>${row.map((v, i) => {
     const intensity = i === 0 ? 0 : Math.min(0.82, (Number(v) || 0) / maxValue);
     return `<td style="${i === 0 ? "" : `background:rgba(57,216,255,${0.08 + intensity});color:${intensity > 0.45 ? "#03111f" : "#dcefff"};`}">${escapeHtml(v)}</td>`;
-  }).join("")}</tr>`).join("")}</tbody></table>`;
+  }).join("")}</tr>`).join("")}</tbody></table></div>`;
 }
 
 function topNgTable() {
@@ -1889,11 +1889,25 @@ function makeChart(id, config) {
   charts[id] = new Chart(canvas, { ...config, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: "#cce8ff" } } }, scales: config.type === "doughnut" || config.type === "radar" ? {} : { x: { ticks: { color: "#9db5cc" }, grid: { color: "rgba(157,181,204,.14)" } }, y: { ticks: { color: "#9db5cc" }, grid: { color: "rgba(157,181,204,.14)" } } } } });
 }
 
-function setHtml(id, html) { const el = byId(id); if (el) el.innerHTML = html; }
+function setHtml(id, html) {
+  const el = byId(id);
+  if (el && el.innerHTML !== html) el.innerHTML = html;
+}
 function setText(id, text) { const el = byId(id); if (el) el.textContent = text; }
 function setInput(id, value) { const el = byId(id); if (el) el.value = value ?? ""; }
 function valueOf(id) { return byId(id)?.value || ""; }
 function fmt(value) { return Number(value || 0).toLocaleString(); }
+function safeStorageGet(key, fallback = "") {
+  try { return localStorage.getItem(key) ?? fallback; } catch { return fallback; }
+}
+function safeStorageSet(key, value) {
+  try { localStorage.setItem(key, value); return true; } catch { return false; }
+}
+function formatDateTime(value) {
+  if (!value) return "-";
+  const date = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(date.getTime()) ? "-" : date.toLocaleString();
+}
 function pct(value) { return `${round(value)}%`; }
 function pf(value) { return value >= 999 ? "Infinity" : String(round(value)); }
 function signed(value) { return value > 0 ? `+${value}` : String(value); }
@@ -2161,6 +2175,11 @@ function productivityMarkdown() {
     `- Current Symbol: ${engine.getCurrentSymbol?.() || "USDJPY"}`,
     `- Available Symbols: ${(engine.getAvailableSymbols?.() || ["USDJPY"]).join(", ")}`,
     "- Legacy CSV without Symbol or CurrencyPair is treated as USDJPY.",
+    "",
+    "## UI & Stability v6.2.1",
+    "",
+    "- Analysis logic is unchanged from v6.2.",
+    "- Dashboard UI, CSV Manager display, responsive layout, and stability handling were improved.",
     "",
     "### Favorite Engine",
     `- Engine: ${favorite || "-"}`,
