@@ -1,4 +1,4 @@
-const engine = new AnalysisEngine();
+﻿const engine = new AnalysisEngine();
 let charts = {};
 const virtualTableState = {};
 const PRODUCTIVITY_VERSION = "6.1";
@@ -6,17 +6,17 @@ const DASHBOARD_CARD_CONFIG_KEY = "scalplayer_dashboard_cards_v61";
 const FAVORITE_ENGINE_KEY = "scalplayer_favorite_engine_v61";
 const SEARCH_QUERY_KEY = "scalplayer_fast_search_query_v61";
 const DEFAULT_DASHBOARD_CARDS = [
-  { id: "labDashboard", label: "Research Lab Summary", visible: true },
-  { id: "workspaceDashboard", label: "Workspace Summary", visible: true },
-  { id: "strategyDashboard", label: "Research Strategy Summary", visible: true },
-  { id: "hypothesisDashboard", label: "Hypothesis Summary", visible: true },
-  { id: "lineageDashboard", label: "Hypothesis Lineage Summary", visible: true },
-  { id: "engineDnaDashboard", label: "Engine DNA Summary", visible: true },
-  { id: "knowledgeGraphDashboard", label: "Knowledge Graph Summary", visible: true },
-  { id: "trendDashboard", label: "Research Trend", visible: true },
-  { id: "analysisWarnings", label: "Analysis Warnings", visible: true },
-  { id: "performancePanel", label: "Performance Panel", visible: true },
-  { id: "progressPanel", label: "Research Progress", visible: true }
+  { id: "labDashboard", label: "\u7814\u7a76\u30e9\u30dc\u6982\u8981", visible: true },
+  { id: "workspaceDashboard", label: "\u30ef\u30fc\u30af\u30b9\u30da\u30fc\u30b9\u6982\u8981", visible: true },
+  { id: "strategyDashboard", label: "\u7814\u7a76\u6226\u7565\u30b5\u30de\u30ea\u30fc", visible: true },
+  { id: "hypothesisDashboard", label: "\u4eee\u8aac\u30b5\u30de\u30ea\u30fc", visible: true },
+  { id: "lineageDashboard", label: "\u4eee\u8aac\u7cfb\u8b5c\u30b5\u30de\u30ea\u30fc", visible: true },
+  { id: "engineDnaDashboard", label: "\u30a8\u30f3\u30b8\u30f3DNA\u30b5\u30de\u30ea\u30fc", visible: true },
+  { id: "knowledgeGraphDashboard", label: "\u30ca\u30ec\u30c3\u30b8\u30b0\u30e9\u30d5\u6982\u8981", visible: true },
+  { id: "trendDashboard", label: "\u7814\u7a76\u30c8\u30ec\u30f3\u30c9", visible: true },
+  { id: "analysisWarnings", label: "\u5206\u6790\u8b66\u544a", visible: true },
+  { id: "performancePanel", label: "\u30d1\u30d5\u30a9\u30fc\u30de\u30f3\u30b9", visible: true },
+  { id: "progressPanel", label: "\u7814\u7a76\u9032\u6357", visible: true }
 ];
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -96,13 +96,13 @@ function setupButtons() {
   });
   on("saveMemoButton", "click", () => {
     saveMemo(byId("researchMemo")?.value || "");
-    setText("memoStatus", "Saved");
+    setText("memoStatus", "保存しました");
     setTimeout(() => setText("memoStatus", ""), 1600);
   });
   on("saveWorkspaceMemoButton", "click", () => {
     ResearchWorkspaceStore.saveMemo(byId("workspaceMemo")?.value || "");
     ResearchWorkspaceStore.addActivity("Memo", "Workspace memo saved", "localStorage only");
-    setText("workspaceMemoStatus", "Saved");
+    setText("workspaceMemoStatus", "保存しました");
     setTimeout(() => setText("workspaceMemoStatus", ""), 1600);
     renderWorkspace();
   });
@@ -225,8 +225,8 @@ function renderActiveTab() {
 function renderStatus() {
   const loaded = engine.files.size;
   byId("statusDot")?.classList.toggle("ready", loaded > 0);
-  setText("statusTitle", loaded ? `${loaded} CSV loaded` : "No CSV loaded");
-  setText("statusText", loaded ? "Research Lab updated." : "Load CSV files exported by the EA.");
+  setText("statusTitle", loaded ? `${loaded}件のCSVを読み込み済み` : "CSV未読み込み");
+  setText("statusText", loaded ? "研究ラボを更新しました。" : "EAが出力したCSVファイルを読み込んでください。");
 }
 
 function renderDashboard() {
@@ -248,82 +248,82 @@ function renderDashboard() {
   const strategy = engine.results.researchStrategy || (typeof ResearchStrategyEngine !== "undefined" ? new ResearchStrategyEngine({ analysisEngine: engine, researchManager }).snapshot() : null);
   if (strategy) engine.results.researchStrategy = strategy;
   setHtml("labDashboard", [
-    researchItem("Best Engine", bestEngine, "Highest current trade performance"),
-    researchItem("Most Active Engine", mostActive, "Highest research score from activity"),
-    researchItem("Current Research Target", target, engine.results.intelligence[0]?.target || "Load CSV")
+    researchItem("最良エンジン", bestEngine, "現在の取引成績が最も高いエンジン"),
+    researchItem("最も活発なエンジン", mostActive, "稼働状況から見た研究スコアが最も高いエンジン"),
+    researchItem("現在の研究対象", target, engine.results.intelligence[0]?.target || "CSVを読み込んでください")
   ].join(""));
-  setHtml("engineDnaDashboard", dna ? `<h3>Top Engine DNA</h3>${metrics([
-    ["Top Engine", dna.topEngine?.engine || "-"],
-    ["Personality", dna.topEngine?.personality || "-"],
-    ["Stability", dna.topEngine?.stability || "-"],
-    ["Hidden Opportunity", dna.hiddenOpportunity?.[0]?.engine || "-"]
-  ])}<p>${escapeHtml(dna.summary || "Load CSV to activate Engine DNA.")}</p>` : `<h3>Top Engine DNA</h3><p class="empty">Engine DNA module is not loaded.</p>`);
-  setHtml("knowledgeGraphDashboard", kg ? `<h3>Knowledge Graph Summary</h3>${metrics([
-    ["Largest Cluster", kg.largestCluster?.label || "-"],
-    ["Most Connected Engine", kg.topConnectedEngine?.label || "-"],
-    ["Most Connected TopNG", kg.topConnectedTopNg?.label || "-"],
-    ["Research Hub", kg.researchHub?.label || "-"],
-    ["Graph Density", `${kg.graphStatistics?.density || 0}%`]
-  ])}<p>${escapeHtml(kg.insight?.[0] || "Load CSV and Research Manager data to activate Knowledge Graph.")}</p>` : `<h3>Knowledge Graph Summary</h3><p class="empty">Knowledge Graph module is not loaded.</p>`);
-  setHtml("workspaceDashboard", workspace ? `<h3>Workspace Summary</h3>${metrics([
-    ["Today's Focus", workspace.summary.title],
-    ["Queue", workspace.summary.queueCount],
-    ["Bookmarks", workspace.summary.bookmarkCount],
-    ["Pinned", workspace.summary.pinCount],
-    ["Recent Activity", workspace.summary.recentActivityCount]
-  ])}<p><strong>Reason:</strong> ${escapeHtml(workspace.summary.reason)}</p><p>${escapeHtml(workspace.summary.next)}</p>` : `<h3>Workspace Summary</h3><p class="empty">Workspace module is not loaded.</p>`);
-  setHtml("hypothesisDashboard", hypothesis ? `<h3>Hypothesis Summary</h3>${metrics([
-    ["Hypotheses", hypothesis.hypothesisSummary.total],
-    ["Top Hypothesis", hypothesis.hypothesisSummary.topTitle],
-    ["Top Score", `${hypothesis.hypothesisSummary.topScore}/100`],
-    ["Confidence", hypothesis.hypothesisSummary.topConfidence],
-    ["Evidence", hypothesis.evidenceSummary.total],
-    ["Open Questions", hypothesis.openQuestions.length]
-  ])}` : `<h3>Hypothesis Summary</h3><p class="empty">Hypothesis module is not loaded.</p>`);
-  setHtml("lineageDashboard", lineage ? `<h3>Hypothesis Lineage Summary</h3>${metrics([
-    ["Largest Family", lineage.hypothesisLineageSummary.largestFamily],
-    ["Most Connected", lineage.hypothesisLineageSummary.mostConnectedHypothesis],
-    ["Orphans", lineage.hypothesisLineageSummary.orphanCount],
-    ["Duplicates", lineage.hypothesisLineageSummary.duplicateCandidateCount],
-    ["Avg Weighted Evidence", lineage.hypothesisLineageSummary.averageWeightedEvidence],
-    ["Avg Readiness", `${lineage.hypothesisLineageSummary.averageValidationReadiness}%`],
-    ["Top Score 2.0", `${lineage.hypothesisLineageSummary.topScore2}/100`],
-    ["Top Confidence", `${lineage.hypothesisLineageSummary.topConfidencePercent}%`]
-  ])}` : `<h3>Hypothesis Lineage Summary</h3><p class="empty">Hypothesis Lineage module is not loaded.</p>`);
-  setHtml("strategyDashboard", strategy ? `<h3>Research Strategy Summary</h3>${metrics([
-    ["Current Best Research", strategy.strategySummary.currentBestResearch],
-    ["Highest ROI", strategy.strategySummary.highestROI],
-    ["Highest Impact", strategy.strategySummary.highestImpact],
-    ["Lowest Cost", strategy.strategySummary.lowestCost],
-    ["Current Blocker", strategy.strategySummary.currentBlocker],
-    ["Coverage", strategy.strategySummary.coverage],
-    ["Roadmap", strategy.strategySummary.roadmap],
-    ["Quick Win", strategy.strategySummary.quickWin]
-  ])}<p>${escapeHtml(strategy.strategySummary.summary)}</p>` : `<h3>Research Strategy Summary</h3><p class="empty">Research Strategy module is not loaded.</p>`);
+  setHtml("engineDnaDashboard", dna ? `<h3>注目エンジンDNA</h3>${metrics([
+    ["注目エンジン", dna.topEngine?.engine || "-"],
+    ["特性", dna.topEngine?.personality || "-"],
+    ["安定度", dna.topEngine?.stability || "-"],
+    ["隠れた研究機会", dna.hiddenOpportunity?.[0]?.engine || "-"]
+  ])}<p>${escapeHtml(dna.summary || "エンジンDNAを表示するにはCSVを読み込んでください。")}</p>` : `<h3>注目エンジンDNA</h3><p class="empty">エンジンDNAモジュールが読み込まれていません。</p>`);
+  setHtml("knowledgeGraphDashboard", kg ? `<h3>ナレッジグラフ概要</h3>${metrics([
+    ["最大クラスタ", kg.largestCluster?.label || "-"],
+    ["接続数の多いエンジン", kg.topConnectedEngine?.label || "-"],
+    ["接続数の多いTopNG", kg.topConnectedTopNg?.label || "-"],
+    ["研究ハブ", kg.researchHub?.label || "-"],
+    ["グラフ密度", `${kg.graphStatistics?.density || 0}%`]
+  ])}<p>${escapeHtml(kg.insight?.[0] || "ナレッジグラフを表示するにはCSVと研究管理データを読み込んでください。")}</p>` : `<h3>ナレッジグラフ概要</h3><p class="empty">ナレッジグラフモジュールが読み込まれていません。</p>`);
+  setHtml("workspaceDashboard", workspace ? `<h3>ワークスペース概要</h3>${metrics([
+    ["今日の注目", workspace.summary.title],
+    ["キュー", workspace.summary.queueCount],
+    ["ブックマーク", workspace.summary.bookmarkCount],
+    ["固定項目", workspace.summary.pinCount],
+    ["最近の活動", workspace.summary.recentActivityCount]
+  ])}<p><strong>理由:</strong> ${escapeHtml(workspace.summary.reason)}</p><p>${escapeHtml(workspace.summary.next)}</p>` : `<h3>ワークスペース概要</h3><p class="empty">ワークスペースモジュールが読み込まれていません。</p>`);
+  setHtml("hypothesisDashboard", hypothesis ? `<h3>仮説サマリー</h3>${metrics([
+    ["仮説数", hypothesis.hypothesisSummary.total],
+    ["注目仮説", hypothesis.hypothesisSummary.topTitle],
+    ["最高スコア", `${hypothesis.hypothesisSummary.topScore}/100`],
+    ["信頼度", hypothesis.hypothesisSummary.topConfidence],
+    ["証拠", hypothesis.evidenceSummary.total],
+    ["未解決項目", hypothesis.openQuestions.length]
+  ])}` : `<h3>仮説サマリー</h3><p class="empty">仮説モジュールが読み込まれていません。</p>`);
+  setHtml("lineageDashboard", lineage ? `<h3>仮説系譜サマリー</h3>${metrics([
+    ["最大ファミリー", lineage.hypothesisLineageSummary.largestFamily],
+    ["接続数最多", lineage.hypothesisLineageSummary.mostConnectedHypothesis],
+    ["孤立", lineage.hypothesisLineageSummary.orphanCount],
+    ["重複", lineage.hypothesisLineageSummary.duplicateCandidateCount],
+    ["平均重み付き証拠", lineage.hypothesisLineageSummary.averageWeightedEvidence],
+    ["平均準備度", `${lineage.hypothesisLineageSummary.averageValidationReadiness}%`],
+    ["最高スコア2.0", `${lineage.hypothesisLineageSummary.topScore2}/100`],
+    ["最高信頼度", `${lineage.hypothesisLineageSummary.topConfidencePercent}%`]
+  ])}` : `<h3>仮説系譜サマリー</h3><p class="empty">仮説系譜モジュールが読み込まれていません。</p>`);
+  setHtml("strategyDashboard", strategy ? `<h3>研究戦略サマリー</h3>${metrics([
+    ["現在の最優先研究", strategy.strategySummary.currentBestResearch],
+    ["最高ROI", strategy.strategySummary.highestROI],
+    ["最大インパクト", strategy.strategySummary.highestImpact],
+    ["最小コスト", strategy.strategySummary.lowestCost],
+    ["現在の阻害要因", strategy.strategySummary.currentBlocker],
+    ["カバー率", strategy.strategySummary.coverage],
+    ["ロードマップ", strategy.strategySummary.roadmap],
+    ["短期改善候補", strategy.strategySummary.quickWin]
+  ])}<p>${escapeHtml(strategy.strategySummary.summary)}</p>` : `<h3>研究戦略サマリー</h3><p class="empty">研究戦略モジュールが読み込まれていません。</p>`);
   const trend = new TrendEngine({ analysisEngine: engine, researchManager }).snapshot();
   engine.results.trend = trend;
-  setHtml("trendDashboard", `<h3>Research Trend</h3>${metrics([
-    ["Snapshots", trend.count],
-    ["Trend", trend.forecast[0]?.status || "Need Data"],
-    ["Best Metric", trend.bestSnapshot[0]?.metric || "-"],
-    ["Recommendation", trend.recommendations[0]?.title || "Continue Timeline Collection"]
+  setHtml("trendDashboard", `<h3>研究トレンド</h3>${metrics([
+    ["スナップショット", trend.count],
+    ["トレンド", trend.forecast[0]?.status || "データ不足"],
+    ["最良指標", trend.bestSnapshot[0]?.metric || "-"],
+    ["推奨", trend.recommendations[0]?.title || "タイムライン収集を継続してください"]
   ])}`);
   renderWarnings();
   renderPerformancePanel();
   setHtml("progressPanel", progressHtml());
   setHtml("dashboardMetrics", metrics([
-    ["Trades", fmt(d.totalTrades)],
-    ["WinRate", pct(d.winRate)],
+    ["取引数", fmt(d.totalTrades)],
+    ["勝率", pct(d.winRate)],
     ["ProfitFactor", pf(d.profitFactor)],
-    ["Total Pips", round(d.totalPips)],
-    ["Expectancy", `${round(d.expectancy)} pips`],
-    ["Max DD", `${round(d.maxDD)} pips`],
-    ["Avg Win", `${round(d.averageWin)} pips`],
-    ["Avg Loss", `${round(d.averageLoss)} pips`]
+    ["総pips", round(d.totalPips)],
+    ["期待値", `${round(d.expectancy)} pips`],
+    ["最大DD", `${round(d.maxDD)} pips`],
+    ["平均勝ち", `${round(d.averageWin)} pips`],
+    ["平均負け", `${round(d.averageLoss)} pips`]
   ]));
-  drawLine("equityChart", cumulativeSeries(engine.results.trades), "Cumulative Pips");
+  drawLine("equityChart", cumulativeSeries(engine.results.trades), "累積pips");
   drawBar("engineProfitChart", engine.results.tradeByEngine.map((x) => x.name), engine.results.tradeByEngine.map((x) => round(x.pips)), "Pips");
-  setHtml("engineProfitRanking", table(["Engine", "Trades", "WinRate", "Pips", "Avg"], engine.results.tradeByEngine.slice(0, 10).map((x) => [x.name, x.trades, pct(x.winRate), round(x.pips), round(x.averagePips)])));
+  setHtml("engineProfitRanking", table(["エンジン", "取引数", "勝率", "Pips", "平均"], engine.results.tradeByEngine.slice(0, 10).map((x) => [x.name, x.trades, pct(x.winRate), round(x.pips), round(x.averagePips)])));
   setHtml("timeWeekSummary", timeWeekSummary());
   renderProductivityPanels();
   applyDashboardCardLayout();
@@ -344,10 +344,10 @@ function productivityBarHtml() {
   const comparison = snapshotDiff(history.at(-2), history.at(-1));
   const strategy = engine.results.researchStrategy;
   return [
-    `<div class="productivity-card primary"><span>Focus</span><strong>${escapeHtml(strategy?.strategySummary?.currentBestResearch || engine.results.intelligence[0]?.title || "Load CSV")}</strong><p>${escapeHtml(strategy?.strategySummary?.summary || "Research-only productivity layer is ready.")}</p></div>`,
-    `<div class="productivity-card"><span>Last Snapshot</span><strong>${history.length ? formatDate(history.at(-1).datetime) : "No history"}</strong><p>${history.length} snapshots stored locally.</p></div>`,
-    `<div class="productivity-card"><span>Latest Diff</span><strong>${comparison ? signed(comparison.trades) : "0"} Trades</strong><p>NearMiss ${comparison ? signed(comparison.nearMiss) : "0"} / PF ${comparison ? signed(round(comparison.profitFactor)) : "0"}</p></div>`,
-    `<div class="productivity-card"><span>Export</span><strong>MD / JSON / CSV</strong><p>Use Export All for a research package.</p></div>`
+    `<div class="productivity-card primary"><span>注目</span><strong>${escapeHtml(strategy?.strategySummary?.currentBestResearch || engine.results.intelligence[0]?.title || "CSVを読み込んでください")}</strong><p>${escapeHtml(strategy?.strategySummary?.summary || "研究専用の効率化レイヤーは準備できています。")}</p></div>`,
+    `<div class="productivity-card"><span>最新スナップショット</span><strong>${history.length ? formatDate(history.at(-1).datetime) : "履歴なし"}</strong><p>${history.length}件のスナップショットをローカル保存中。</p></div>`,
+    `<div class="productivity-card"><span>最新差分</span><strong>${comparison ? signed(comparison.trades) : "0"} 取引</strong><p>NearMiss ${comparison ? signed(comparison.nearMiss) : "0"} / PF ${comparison ? signed(round(comparison.profitFactor)) : "0"}</p></div>`,
+    `<div class="productivity-card"><span>エクスポート</span><strong>MD / JSON / CSV</strong><p>一括エクスポートで研究パッケージを作成できます。</p></div>`
   ].join("");
 }
 
@@ -391,7 +391,7 @@ function applyDashboardCardLayout() {
 
 function dashboardCustomizeHtml() {
   const cards = getDashboardCards();
-  return `<div class="dashboard-customize">${cards.map((card, index) => `<div class="customize-row"><label><input class="dashboard-card-toggle" data-card-id="${escapeHtml(card.id)}" type="checkbox" ${card.visible ? "checked" : ""}> ${escapeHtml(card.label)}</label><div><button class="tiny-button dashboard-card-move" data-card-id="${escapeHtml(card.id)}" data-direction="up" ${index === 0 ? "disabled" : ""}>Up</button> <button class="tiny-button dashboard-card-move" data-card-id="${escapeHtml(card.id)}" data-direction="down" ${index === cards.length - 1 ? "disabled" : ""}>Down</button></div></div>`).join("")}</div>`;
+  return `<div class="dashboard-customize">${cards.map((card, index) => `<div class="customize-row"><label><input class="dashboard-card-toggle" data-card-id="${escapeHtml(card.id)}" type="checkbox" ${card.visible ? "checked" : ""}> ${escapeHtml(card.label)}</label><div><button class="tiny-button dashboard-card-move" data-card-id="${escapeHtml(card.id)}" data-direction="up" ${index === 0 ? "disabled" : ""}>上へ</button> <button class="tiny-button dashboard-card-move" data-card-id="${escapeHtml(card.id)}" data-direction="down" ${index === cards.length - 1 ? "disabled" : ""}>下へ</button></div></div>`).join("")}</div>`;
 }
 
 function getEngineNames() {
@@ -420,32 +420,32 @@ function getEngineSummary(name) {
 
 function favoriteEngineHtml(engineNames, favorite, data) {
   const buttons = engineNames.slice(0, 10).map((name) => `<button class="tiny-button favorite-engine-button ${name === favorite ? "active" : ""}" data-engine="${escapeHtml(name)}">${escapeHtml(name)}</button>`).join(" ");
-  if (!favorite) return `<div class="empty">Load CSV to choose a favorite Engine.</div>`;
+  if (!favorite) return `<div class="empty">CSVを読み込むとお気に入りエンジンを選択できます。</div>`;
   return `${metrics([
-    ["Favorite", favorite],
-    ["Trades", data?.trade?.trades || 0],
-    ["WinRate", pct(data?.trade?.winRate || 0)],
+    ["お気に入り", favorite],
+    ["取引数", data?.trade?.trades || 0],
+    ["勝率", pct(data?.trade?.winRate || 0)],
     ["Pips", round(data?.trade?.pips || 0)],
-    ["Checks", data?.activity?.checks || 0],
-    ["EntryRate", pct(data?.activity?.entryRate || 0)],
-    ["Health", data?.activity?.health || data?.dna?.stability || "-"],
+    ["判定回数", data?.activity?.checks || 0],
+    ["エントリー率", pct(data?.activity?.entryRate || 0)],
+    ["健康状態", data?.activity?.health || data?.dna?.stability || "-"],
     ["TopNG", data?.activity?.topNg?.[0]?.name || data?.dna?.topNg?.[0]?.name || "-"]
-  ])}<div class="favorite-buttons">${buttons || "<span class='empty'>No Engine data.</span>"}</div>`;
+  ])}<div class="favorite-buttons">${buttons || "<span class='empty'>エンジンデータがありません。</span>"}</div>`;
 }
 
 function snapshotCompareHtml() {
   const history = loadResearchHistory();
-  if (history.length < 2) return `<div class="empty">Run Analyzer at least twice to compare snapshots.</div>`;
+  if (history.length < 2) return `<div class="empty">スナップショット比較にはAnalyzerを2回以上実行してください。</div>`;
   const current = history.at(-1);
   const previous = history.at(-2);
   const previousDay = findPreviousDaySnapshot(history);
   const avg7 = averageSnapshots(history.slice(-7));
   const rows = [
-    ["Previous", previous],
-    ["Previous Day", previousDay],
-    ["Last 7 Avg", avg7]
+    ["前回", previous],
+    ["前日", previousDay],
+    ["直近7回平均", avg7]
   ].filter((x) => x[1]).map(([label, base]) => snapshotDiffRow(label, base, current));
-  return rawTable(["Compare", "Trades", "NearMiss", "WinRate", "PF", "Quality"], rows);
+  return rawTable(["比較", "取引数", "NearMiss", "勝率", "PF", "品質"], rows);
 }
 
 function snapshotDiffRow(label, base, current) {
@@ -501,32 +501,32 @@ function changeBadge(value, lowerIsGood = false, suffix = "") {
 function renderEngineDna() {
   if (!byId("engineDnaOverview")) return;
   if (typeof EngineDnaEngine === "undefined") {
-    setHtml("engineDnaOverview", `<span class="pill">Engine DNA</span><h3>Engine DNA module is not loaded.</h3>`);
+    setHtml("engineDnaOverview", `<span class="pill">Engine DNA</span><h3>Engine DNAモジュールが読み込まれていません。</h3>`);
     return;
   }
   const dna = new EngineDnaEngine({ analysisEngine: engine }).snapshot();
   engine.results.engineDna = dna;
   const top = dna.topEngine;
-  setHtml("engineDnaOverview", `<span class="pill">Engine DNA</span><h3>${escapeHtml(top ? `${top.engine} / ${top.personality}` : "Load CSV to build Engine DNA.")}</h3><p>${escapeHtml(dna.summary || "Engine DNA analyzes personality, similarity, cluster, strength, weakness, and evolution without changing EA or CSV data.")}</p>`);
+  setHtml("engineDnaOverview", `<span class="pill">Engine DNA</span><h3>${escapeHtml(top ? `${top.engine} / ${top.personality}` : "CSVを読み込むとEngine DNAを作成できます。")}</h3><p>${escapeHtml(dna.summary || "Engine DNAはEAやCSVを変更せず、性格・類似度・クラスタ・強み・弱み・進化を分析します。")}</p>`);
   setHtml("engineDnaMetrics", metrics([
-    ["Engines", dna.profiles.length],
-    ["Top DNA Score", top ? top.researchScore : "0"],
-    ["Top Confidence", top ? top.confidence : "No Data"],
-    ["Clusters", dna.clusters.length],
-    ["Similarity Pairs", dna.similarity.length],
-    ["Hidden Opportunities", dna.hiddenOpportunity.length],
-    ["Evolution Items", dna.evolution.length],
-    ["Mode", "Research Only"]
+    ["エンジン数", dna.profiles.length],
+    ["最高DNAスコア", top ? top.researchScore : "0"],
+    ["最高信頼度", top ? top.confidence : "データなし"],
+    ["クラスタ数", dna.clusters.length],
+    ["類似ペア", dna.similarity.length],
+    ["隠れた研究機会", dna.hiddenOpportunity.length],
+    ["進化項目", dna.evolution.length],
+    ["モード", "研究専用"]
   ]));
-  setHtml("engineDnaProfiles", table(["Engine", "Score", "Confidence", "Personality", "Cluster", "Trades", "NearMiss", "Signals", "WinRate", "PF", "Expectancy", "TopNG"], dna.profiles.map((x) => [x.engine, x.researchScore, x.confidence, x.personality, x.cluster, x.tradeCount, x.nearMissCount, x.signalCount, pct(x.winRate), pf(x.profitFactor), round(x.expectancy), (x.topNg || []).slice(0, 3).map((n) => `${n.name}:${n.count}`).join(" / ")])));
-  setHtml("enginePersonality", table(["Engine", "Personality", "Strength", "Weakness"], dna.profiles.map((x) => [x.engine, x.personality, (x.strength || []).join(" / ") || "-", (x.weakness || []).join(" / ") || "-"])));
-  setHtml("engineStability", table(["Engine", "Stability", "Avg Win", "Avg Loss", "Avg Hold", "Avg Spread", "Avg RSI", "Avg ATR"], dna.profiles.map((x) => [x.engine, x.stability, round(x.averageWin), round(x.averageLoss), round(x.averageHolding), round(x.averageSpread), round(x.averageRsi), round(x.averageAtr)])));
-  setHtml("engineSimilarity", table(["Engine A", "Engine B", "Similarity", "Shared Signals"], dna.similarity.slice(0, 30).map((x) => [x.engineA, x.engineB, `${x.similarity}%`, x.shared.join(" / ") || "-"])));
-  setHtml("engineCluster", table(["Cluster", "Count", "Engines", "Avg DNA", "Avg Stability"], dna.clusters.map((x) => [x.cluster, x.count, x.engines.join(", "), x.averageDnaScore, x.averageStability])));
-  setHtml("engineStrength", table(["Engine", "Strength"], dna.profiles.map((x) => [x.engine, (x.strength || []).join(" / ") || "-"])));
-  setHtml("engineWeakness", table(["Engine", "Weakness"], dna.profiles.map((x) => [x.engine, (x.weakness || []).join(" / ") || "-"])));
-  setHtml("hiddenOpportunity", table(["Priority", "Engine", "Trades", "NearMiss", "Signals", "Reason"], dna.hiddenOpportunity.map((x) => [x.priority, x.engine, x.trades, x.nearMiss, x.signals, x.reason])));
-  setHtml("engineDnaEvolution", table(["Engine", "Points", "First", "Last", "Delta", "Status"], dna.evolution.map((x) => [x.engine, x.points, x.firstScore, x.lastScore, signed(x.delta), x.status])));
+  setHtml("engineDnaProfiles", table(["エンジン", "スコア", "信頼度", "特性", "クラスタ", "取引数", "NearMiss", "シグナル", "勝率", "PF", "期待値", "TopNG"], dna.profiles.map((x) => [x.engine, x.researchScore, x.confidence, x.personality, x.cluster, x.tradeCount, x.nearMissCount, x.signalCount, pct(x.winRate), pf(x.profitFactor), round(x.expectancy), (x.topNg || []).slice(0, 3).map((n) => `${n.name}:${n.count}`).join(" / ")])));
+  setHtml("enginePersonality", table(["エンジン", "特性", "強み", "弱み"], dna.profiles.map((x) => [x.engine, x.personality, (x.strength || []).join(" / ") || "-", (x.weakness || []).join(" / ") || "-"])));
+  setHtml("engineStability", table(["エンジン", "安定度", "平均勝ち", "平均負け", "平均保有", "平均スプレッド", "平均RSI", "平均ATR"], dna.profiles.map((x) => [x.engine, x.stability, round(x.averageWin), round(x.averageLoss), round(x.averageHolding), round(x.averageSpread), round(x.averageRsi), round(x.averageAtr)])));
+  setHtml("engineSimilarity", table(["エンジンA", "エンジンB", "類似度", "共通シグナル"], dna.similarity.slice(0, 30).map((x) => [x.engineA, x.engineB, `${x.similarity}%`, x.shared.join(" / ") || "-"])));
+  setHtml("engineCluster", table(["クラスタ", "件数", "エンジン", "平均DNA", "平均安定度"], dna.clusters.map((x) => [x.cluster, x.count, x.engines.join(", "), x.averageDnaScore, x.averageStability])));
+  setHtml("engineStrength", table(["エンジン", "強み"], dna.profiles.map((x) => [x.engine, (x.strength || []).join(" / ") || "-"])));
+  setHtml("engineWeakness", table(["エンジン", "弱み"], dna.profiles.map((x) => [x.engine, (x.weakness || []).join(" / ") || "-"])));
+  setHtml("hiddenOpportunity", table(["優先度", "エンジン", "取引数", "NearMiss", "シグナル", "理由"], dna.hiddenOpportunity.map((x) => [x.priority, x.engine, x.trades, x.nearMiss, x.signals, x.reason])));
+  setHtml("engineDnaEvolution", table(["エンジン", "データ点", "初回", "最新", "差分", "状態"], dna.evolution.map((x) => [x.engine, x.points, x.firstScore, x.lastScore, signed(x.delta), x.status])));
   renderDnaCompare(dna);
 }
 
@@ -548,24 +548,24 @@ function renderDnaCompare(dna) {
   const b = dna.profiles.find((x) => x.engine === bSelect.value);
   const sim = dna.similarity.find((x) => (x.engineA === a?.engine && x.engineB === b?.engine) || (x.engineA === b?.engine && x.engineB === a?.engine));
   if (!a || !b) {
-    setHtml("engineDnaCompare", `<div class="empty">Load CSV to compare Engine DNA.</div>`);
+    setHtml("engineDnaCompare", `<div class="empty">CSVを読み込むとEngine DNAを比較できます。</div>`);
     return;
   }
   setHtml("engineDnaCompare", `${metrics([
-    ["Similarity", sim ? `${sim.similarity}%` : "100%"],
-    ["Shared", sim ? sim.shared.join(" / ") || "-" : "Same Engine"],
-    ["A Personality", a.personality],
-    ["B Personality", b.personality]
-  ])}${table(["Metric", a.engine, b.engine], [
-    ["Research Score", a.researchScore, b.researchScore],
-    ["Confidence", a.confidence, b.confidence],
-    ["Stability", a.stability, b.stability],
-    ["Trade Count", a.tradeCount, b.tradeCount],
-    ["NearMiss Count", a.nearMissCount, b.nearMissCount],
-    ["Signal Count", a.signalCount, b.signalCount],
-    ["WinRate", pct(a.winRate), pct(b.winRate)],
+    ["類似度", sim ? `${sim.similarity}%` : "100%"],
+    ["共通点", sim ? sim.shared.join(" / ") || "-" : "同じエンジン"],
+    ["Aの特性", a.personality],
+    ["Bの特性", b.personality]
+  ])}${table(["指標", a.engine, b.engine], [
+    ["研究スコア", a.researchScore, b.researchScore],
+    ["信頼度", a.confidence, b.confidence],
+    ["安定度", a.stability, b.stability],
+    ["取引数", a.tradeCount, b.tradeCount],
+    ["NearMiss数", a.nearMissCount, b.nearMissCount],
+    ["シグナル数", a.signalCount, b.signalCount],
+    ["勝率", pct(a.winRate), pct(b.winRate)],
     ["Profit Factor", pf(a.profitFactor), pf(b.profitFactor)],
-    ["Expectancy", round(a.expectancy), round(b.expectancy)],
+    ["期待値", round(a.expectancy), round(b.expectancy)],
     ["TopNG", (a.topNg || []).slice(0, 3).map((n) => n.name).join(" / ") || "-", (b.topNg || []).slice(0, 3).map((n) => n.name).join(" / ") || "-"]
   ])}`);
 }
@@ -573,78 +573,78 @@ function renderDnaCompare(dna) {
 function renderKnowledgeGraph() {
   if (!byId("knowledgeOverview")) return;
   if (typeof KnowledgeGraphEngine === "undefined") {
-    setHtml("knowledgeOverview", `<span class="pill">Knowledge Graph</span><h3>Knowledge Graph module is not loaded.</h3>`);
+    setHtml("knowledgeOverview", `<span class="pill">ナレッジグラフ</span><h3>ナレッジグラフモジュールが読み込まれていません。</h3>`);
     return;
   }
   const kg = new KnowledgeGraphEngine({ analysisEngine: engine, researchManager }).snapshot();
   engine.results.knowledgeGraph = kg;
-  setHtml("knowledgeOverview", `<span class="pill">Research Knowledge Graph</span><h3>${escapeHtml(kg.topConnectedEngine?.label || "Knowledge Graph needs more data.")}</h3><p>${escapeHtml((kg.insight || []).join(" "))}</p>`);
+  setHtml("knowledgeOverview", `<span class="pill">研究ナレッジグラフ</span><h3>${escapeHtml(kg.topConnectedEngine?.label || "ナレッジグラフにはさらにデータが必要です。")}</h3><p>${escapeHtml((kg.insight || []).join(" "))}</p>`);
   setHtml("knowledgeMetrics", metrics([
-    ["Nodes", kg.graphStatistics.nodeCount],
-    ["Edges", kg.graphStatistics.edgeCount],
-    ["Engines", kg.graphStatistics.engineCount],
-    ["Research", kg.graphStatistics.researchCount],
-    ["Conditions", kg.graphStatistics.conditionCount],
-    ["Sessions", kg.graphStatistics.sessionCount],
-    ["Components", kg.graphStatistics.connectedComponents],
-    ["Density", `${kg.graphStatistics.density}%`]
+    ["ノード", kg.graphStatistics.nodeCount],
+    ["接続", kg.graphStatistics.edgeCount],
+    ["エンジン", kg.graphStatistics.engineCount],
+    ["研究", kg.graphStatistics.researchCount],
+    ["条件", kg.graphStatistics.conditionCount],
+    ["セッション", kg.graphStatistics.sessionCount],
+    ["構成要素", kg.graphStatistics.connectedComponents],
+    ["密度", `${kg.graphStatistics.density}%`]
   ]));
-  setHtml("knowledgeGraphView", graphPreviewHtml(kg.nodes, kg.edges, "Knowledge Graph"));
-  setHtml("engineNetwork", `${graphPreviewHtml(kg.engineSimilarityGraph.nodes, kg.engineSimilarityGraph.edges, "Engine Similarity")}${table(["Engine A", "Engine B", "Similarity"], kg.engineSimilarityGraph.edges.slice(0, 20).map((x) => [labelFromNodeId(x.source), labelFromNodeId(x.target), x.label]))}`);
-  setHtml("researchNetwork", table(["Research", "Engine", "Category", "Status"], kg.dependencyGraph.nodes.slice(0, 30).map((x) => [x.label, x.engine || "-", x.category || "-", x.status || "-"])));
+  setHtml("knowledgeGraphView", graphPreviewHtml(kg.nodes, kg.edges, "ナレッジグラフ"));
+  setHtml("engineNetwork", `${graphPreviewHtml(kg.engineSimilarityGraph.nodes, kg.engineSimilarityGraph.edges, "エンジン類似度")}${table(["エンジンA", "エンジンB", "類似度"], kg.engineSimilarityGraph.edges.slice(0, 20).map((x) => [labelFromNodeId(x.source), labelFromNodeId(x.target), x.label]))}`);
+  setHtml("researchNetwork", table(["研究", "エンジン", "カテゴリ", "状態"], kg.dependencyGraph.nodes.slice(0, 30).map((x) => [x.label, x.engine || "-", x.category || "-", x.status || "-"])));
   setHtml("clusterTree", clusterTreeHtml(kg.engineClusterGraph));
   setHtml("opportunityFlow", flowHtml(kg.opportunityFlow));
-  setHtml("sessionFlow", table(["Session", "Trades", "NearMiss", "WinRate", "Research Score"], kg.sessionFlow.map((x) => [x.session, x.trades, x.nearMiss, pct(x.winRate), x.researchScore])));
-  setHtml("topNgNetwork", table(["Source", "Target", "Type", "Weight"], kg.bottleneckGraph.slice(0, 40).map((x) => [labelFromNodeId(x.source), labelFromNodeId(x.target), x.type, x.weight])));
-  setHtml("dependencyGraph", table(["Research A", "Research B", "Dependency"], kg.dependencyGraph.edges.slice(0, 40).map((x) => [labelFromResearchId(kg.dependencyGraph.nodes, x.source), labelFromResearchId(kg.dependencyGraph.nodes, x.target), x.label])));
-  setHtml("graphStatistics", table(["Metric", "Value"], [
-    ["Node Count", kg.graphStatistics.nodeCount],
-    ["Edge Count", kg.graphStatistics.edgeCount],
-    ["Engine Count", kg.graphStatistics.engineCount],
-    ["Research Count", kg.graphStatistics.researchCount],
-    ["Condition Count", kg.graphStatistics.conditionCount],
-    ["Session Count", kg.graphStatistics.sessionCount],
-    ["TopNG Count", kg.graphStatistics.topNgCount],
-    ["Connected Components", kg.graphStatistics.connectedComponents],
-    ["Graph Density", `${kg.graphStatistics.density}%`],
-    ["Largest Cluster", `${kg.largestCluster.label} (${kg.largestCluster.count})`],
-    ["Research Hub", `${kg.researchHub.label} (${kg.researchHub.degree})`],
-    ["Top Connected Engine", `${kg.topConnectedEngine.label} (${kg.topConnectedEngine.degree})`],
-    ["Top Connected TopNG", `${kg.topConnectedTopNg.label} (${kg.topConnectedTopNg.degree})`]
+  setHtml("sessionFlow", table(["セッション", "取引数", "NearMiss", "勝率", "研究スコア"], kg.sessionFlow.map((x) => [x.session, x.trades, x.nearMiss, pct(x.winRate), x.researchScore])));
+  setHtml("topNgNetwork", table(["元", "先", "種類", "重み"], kg.bottleneckGraph.slice(0, 40).map((x) => [labelFromNodeId(x.source), labelFromNodeId(x.target), x.type, x.weight])));
+  setHtml("dependencyGraph", table(["研究A", "研究B", "依存関係"], kg.dependencyGraph.edges.slice(0, 40).map((x) => [labelFromResearchId(kg.dependencyGraph.nodes, x.source), labelFromResearchId(kg.dependencyGraph.nodes, x.target), x.label])));
+  setHtml("graphStatistics", table(["指標", "値"], [
+    ["ノード数", kg.graphStatistics.nodeCount],
+    ["接続数", kg.graphStatistics.edgeCount],
+    ["エンジン数", kg.graphStatistics.engineCount],
+    ["研究数", kg.graphStatistics.researchCount],
+    ["条件数", kg.graphStatistics.conditionCount],
+    ["セッション数", kg.graphStatistics.sessionCount],
+    ["TopNG数", kg.graphStatistics.topNgCount],
+    ["接続構成数", kg.graphStatistics.connectedComponents],
+    ["グラフ密度", `${kg.graphStatistics.density}%`],
+    ["最大クラスタ", `${kg.largestCluster.label} (${kg.largestCluster.count})`],
+    ["研究ハブ", `${kg.researchHub.label} (${kg.researchHub.degree})`],
+    ["接続数最多エンジン", `${kg.topConnectedEngine.label} (${kg.topConnectedEngine.degree})`],
+    ["接続数最多TopNG", `${kg.topConnectedTopNg.label} (${kg.topConnectedTopNg.degree})`]
   ]));
 }
 
 function renderWorkspace() {
   if (!byId("workspaceOverview")) return;
   if (typeof ResearchWorkspaceEngine === "undefined") {
-    setHtml("workspaceOverview", `<span class="pill">Research Workspace</span><h3>Workspace module is not loaded.</h3>`);
+    setHtml("workspaceOverview", `<span class="pill">研究ワークスペース</span><h3>ワークスペースモジュールが読み込まれていません。</h3>`);
     return;
   }
   const workspace = new ResearchWorkspaceEngine({ analysisEngine: engine, researchManager }).snapshot();
   engine.results.workspace = workspace;
   if (byId("workspaceMemo")) byId("workspaceMemo").value = ResearchWorkspaceStore.load().memo;
-  setHtml("workspaceOverview", `<span class="pill">Research Workspace</span><h3>${escapeHtml(workspace.summary.title)}</h3><p><strong>Reason:</strong> ${escapeHtml(workspace.summary.reason)}</p><p>${escapeHtml(workspace.summary.next)}</p>`);
+  setHtml("workspaceOverview", `<span class="pill">研究ワークスペース</span><h3>${escapeHtml(workspace.summary.title)}</h3><p><strong>理由:</strong> ${escapeHtml(workspace.summary.reason)}</p><p>${escapeHtml(workspace.summary.next)}</p>`);
   setHtml("workspaceMetrics", metrics([
-    ["Focus", workspace.focus.length],
-    ["Queue", workspace.queue.length],
-    ["Bookmarks", workspace.bookmarks.length],
-    ["Pinned", workspace.pins.length],
-    ["Recent Activity", workspace.recentActivity.length],
-    ["Memo", `${workspace.memoLength} chars`],
-    ["Mode", "Research Only"],
-    ["Storage", "localStorage"]
+    ["今日の注目", workspace.focus.length],
+    ["キュー", workspace.queue.length],
+    ["ブックマーク", workspace.bookmarks.length],
+    ["固定項目", workspace.pins.length],
+    ["最近の活動", workspace.recentActivity.length],
+    ["メモ", `${workspace.memoLength} 文字`],
+    ["モード", "研究専用"],
+    ["保存先", "localStorage"]
   ]));
-  setHtml("todaysFocus", workspace.focus.length ? workspace.focus.map((x, i) => workspaceItemHtml(x, i + 1, true)).join("") : `<div class="empty">No focus yet. Load CSV or create Research items.</div>`);
-  setHtml("researchQueue", workspace.queue.length ? `<div class="workspace-list">${workspace.queue.map((x, i) => workspaceItemHtml(x, i + 1)).join("")}</div>` : `<div class="empty">No Research Queue yet.</div>`);
-  setHtml("workspaceBookmarks", workspace.bookmarks.length ? `<div class="workspace-list">${workspace.bookmarks.map((x, i) => workspaceSavedItemHtml(x, i + 1, "bookmark")).join("")}</div>` : `<div class="empty">No bookmarks yet.</div>`);
-  setHtml("workspacePins", workspace.pins.length ? `<div class="workspace-list">${workspace.pins.map((x, i) => workspaceSavedItemHtml(x, i + 1, "pin")).join("")}</div>` : `<div class="empty">No pinned items yet.</div>`);
-  setHtml("workspaceRecentActivity", workspace.recentActivity.length ? table(["Time", "Type", "Title", "Detail"], workspace.recentActivity.map((x) => [formatDate(x.at), x.type, x.title, x.detail || "-"])) : `<div class="empty">No recent activity yet.</div>`);
+  setHtml("todaysFocus", workspace.focus.length ? workspace.focus.map((x, i) => workspaceItemHtml(x, i + 1, true)).join("") : `<div class="empty">まだ注目研究がありません。CSVを読み込むか研究項目を作成してください。</div>`);
+  setHtml("researchQueue", workspace.queue.length ? `<div class="workspace-list">${workspace.queue.map((x, i) => workspaceItemHtml(x, i + 1)).join("")}</div>` : `<div class="empty">研究キューはまだありません。</div>`);
+  setHtml("workspaceBookmarks", workspace.bookmarks.length ? `<div class="workspace-list">${workspace.bookmarks.map((x, i) => workspaceSavedItemHtml(x, i + 1, "bookmark")).join("")}</div>` : `<div class="empty">ブックマークはまだありません。</div>`);
+  setHtml("workspacePins", workspace.pins.length ? `<div class="workspace-list">${workspace.pins.map((x, i) => workspaceSavedItemHtml(x, i + 1, "pin")).join("")}</div>` : `<div class="empty">固定項目はまだありません。</div>`);
+  setHtml("workspaceRecentActivity", workspace.recentActivity.length ? table(["時刻", "種類", "タイトル", "詳細"], workspace.recentActivity.map((x) => [formatDate(x.at), x.type, x.title, x.detail || "-"])) : `<div class="empty">最近の活動はまだありません。</div>`);
 }
 
 function renderHypothesis() {
   if (!byId("hypothesisOverview")) return;
   if (typeof ResearchHypothesisEngine === "undefined") {
-    setHtml("hypothesisOverview", `<span class="pill">Research Hypothesis</span><h3>Hypothesis module is not loaded.</h3>`);
+    setHtml("hypothesisOverview", `<span class="pill">研究仮説</span><h3>仮説モジュールが読み込まれていません。</h3>`);
     return;
   }
   const snapshot = new ResearchHypothesisEngine({ analysisEngine: engine, researchManager }).snapshot();
@@ -652,28 +652,28 @@ function renderHypothesis() {
   const lineage = typeof HypothesisLineageEngine !== "undefined" ? new HypothesisLineageEngine({ analysisEngine: engine, researchManager }).snapshot() : null;
   if (lineage) engine.results.hypothesisLineage = lineage;
   const top = snapshot.hypotheses[0];
-  setHtml("hypothesisOverview", `<span class="pill">Research Hypothesis</span><h3>${escapeHtml(top?.title || "No hypothesis yet.")}</h3><p>${escapeHtml(top ? `${top.hypothesis} / Confidence ${top.confidence} / Score ${top.score}` : "Create Research items or load CSV to generate hypotheses.")}</p>`);
+  setHtml("hypothesisOverview", `<span class="pill">研究仮説</span><h3>${escapeHtml(top?.title || "仮説はまだありません。")}</h3><p>${escapeHtml(top ? `${top.hypothesis} / 信頼度 ${top.confidence} / スコア ${top.score}` : "研究項目を作成するかCSVを読み込むと仮説を生成できます。")}</p>`);
   setHtml("hypothesisMetrics", metrics([
-    ["Hypotheses", snapshot.hypothesisSummary.total],
-    ["Verified", snapshot.hypothesisSummary.verified],
-    ["Rejected", snapshot.hypothesisSummary.rejected],
-    ["Top Score", `${snapshot.hypothesisSummary.topScore}/100`],
-    ["Evidence", snapshot.evidenceSummary.total],
-    ["Support", snapshot.evidenceSummary.support],
-    ["Contradiction", snapshot.evidenceSummary.contradiction],
-    ["Open Questions", snapshot.openQuestions.length]
+    ["仮説数", snapshot.hypothesisSummary.total],
+    ["検証済み", snapshot.hypothesisSummary.verified],
+    ["却下", snapshot.hypothesisSummary.rejected],
+    ["最高スコア", `${snapshot.hypothesisSummary.topScore}/100`],
+    ["証拠", snapshot.evidenceSummary.total],
+    ["支持", snapshot.evidenceSummary.support],
+    ["矛盾", snapshot.evidenceSummary.contradiction],
+    ["未解決項目", snapshot.openQuestions.length]
   ]));
-  setHtml("hypothesisScore2Table", lineage ? table(["Title", "Score 2.0", "Confidence %", "Weighted Evidence", "Validation", "Contradictions", "Open Questions"], lineage.hypothesisScore2.slice(0, 20).map((x) => [x.title, `${x.score}/100`, `${x.confidencePercent}%`, x.weightedEvidence, `${x.validationReadiness}%`, x.contradictions, x.openQuestions])) : `<div class="empty">Hypothesis Lineage module is not loaded.</div>`);
-  setHtml("hypothesisFlow", flowHtml(snapshot.researchFlow.map((step, index) => ({ from: step, to: snapshot.researchFlow[index + 1] || "Done", value: index + 1, label: step === "Archive" ? "Archive complete" : `${step} -> ${snapshot.researchFlow[index + 1]}` })).slice(0, -1)));
-  setHtml("hypothesisList", snapshot.hypotheses.length ? `<div class="workspace-list">${snapshot.hypotheses.map(hypothesisCardHtml).join("")}</div>` : `<div class="empty">No hypothesis yet.</div>`);
+  setHtml("hypothesisScore2Table", lineage ? table(["タイトル", "スコア2.0", "信頼度%", "重み付き証拠", "検証準備度", "矛盾", "未解決項目"], lineage.hypothesisScore2.slice(0, 20).map((x) => [x.title, `${x.score}/100`, `${x.confidencePercent}%`, x.weightedEvidence, `${x.validationReadiness}%`, x.contradictions, x.openQuestions])) : `<div class="empty">仮説系譜モジュールが読み込まれていません。</div>`);
+  setHtml("hypothesisFlow", flowHtml(snapshot.researchFlow.map((step, index) => ({ from: step, to: snapshot.researchFlow[index + 1] || "完了", value: index + 1, label: step === "Archive" ? "アーカイブ完了" : `${step} → ${snapshot.researchFlow[index + 1]}` })).slice(0, -1)));
+  setHtml("hypothesisList", snapshot.hypotheses.length ? `<div class="workspace-list">${snapshot.hypotheses.map(hypothesisCardHtml).join("")}</div>` : `<div class="empty">仮説はまだありません。</div>`);
   setHtml("evidenceSummary", `${metrics([
-    ["Total Evidence", snapshot.evidenceSummary.total],
-    ["Support", snapshot.evidenceSummary.support],
-    ["Neutral", snapshot.evidenceSummary.neutral],
-    ["Contradiction", snapshot.evidenceSummary.contradiction]
-  ])}${table(["Source", "Count"], snapshot.evidenceSummary.bySource.map((x) => [x.name, x.count]))}`);
-  setHtml("openQuestions", table(["Open Question", "Count"], snapshot.openQuestions.map((x) => [x.question, x.count])));
-  setHtml("hypothesisContradictions", table(["Hypothesis", "Source", "Evidence", "Value", "Reason"], snapshot.contradictions.map((x) => [x.hypothesis, x.source, x.title, x.value, x.reason])));
+    ["証拠合計", snapshot.evidenceSummary.total],
+    ["支持", snapshot.evidenceSummary.support],
+    ["中立", snapshot.evidenceSummary.neutral],
+    ["矛盾", snapshot.evidenceSummary.contradiction]
+  ])}${table(["出所", "件数"], snapshot.evidenceSummary.bySource.map((x) => [x.name, x.count]))}`);
+  setHtml("openQuestions", table(["未解決項目", "件数"], snapshot.openQuestions.map((x) => [x.question, x.count])));
+  setHtml("hypothesisContradictions", table(["仮説", "出所", "証拠", "値", "理由"], snapshot.contradictions.map((x) => [x.hypothesis, x.source, x.title, x.value, x.reason])));
   document.querySelectorAll(".hypothesis-status").forEach((select) => {
     select.addEventListener("change", () => {
       ResearchHypothesisStore.setStatus(select.dataset.id, select.value);
@@ -687,36 +687,36 @@ function renderHypothesis() {
 function renderLineage() {
   if (!byId("lineageOverview")) return;
   if (typeof HypothesisLineageEngine === "undefined") {
-    setHtml("lineageOverview", `<span class="pill">Hypothesis Lineage</span><h3>Hypothesis Lineage module is not loaded.</h3>`);
+    setHtml("lineageOverview", `<span class="pill">仮説系譜</span><h3>仮説系譜モジュールが読み込まれていません。</h3>`);
     return;
   }
   const snapshot = new HypothesisLineageEngine({ analysisEngine: engine, researchManager }).snapshot();
   engine.results.hypothesisLineage = snapshot;
   const summary = snapshot.hypothesisLineageSummary;
-  setHtml("lineageOverview", `<span class="pill">Hypothesis Lineage</span><h3>${escapeHtml(summary.topHypothesis || "No hypothesis yet.")}</h3><p>Score 2.0 ${escapeHtml(summary.topScore2)} / Confidence ${escapeHtml(summary.topConfidencePercent)}% / Largest Family: ${escapeHtml(summary.largestFamily || "-")}</p><p>This screen manages Research relations only. It never changes the EA, CSV, or trading conditions.</p>`);
+  setHtml("lineageOverview", `<span class="pill">仮説系譜</span><h3>${escapeHtml(summary.topHypothesis || "仮説はまだありません。")}</h3><p>スコア2.0 ${escapeHtml(summary.topScore2)} / 信頼度 ${escapeHtml(summary.topConfidencePercent)}% / 最大ファミリー: ${escapeHtml(summary.largestFamily || "-")}</p><p>この画面は研究関係だけを管理します。EA、CSV、売買条件は変更しません。</p>`);
   setHtml("lineageMetrics", metrics([
-    ["Hypothesis Count", snapshot.lineagesStatistics.hypothesisCount],
-    ["Relation Count", snapshot.lineagesStatistics.relationCount],
-    ["Family Count", snapshot.hypothesisFamilies.length],
-    ["Orphan Count", snapshot.hypothesisLineageSummary.orphanCount],
-    ["Duplicate Candidates", snapshot.hypothesisLineageSummary.duplicateCandidateCount],
-    ["Average Weighted Evidence", snapshot.hypothesisLineageSummary.averageWeightedEvidence],
-    ["Average Readiness", `${snapshot.hypothesisLineageSummary.averageValidationReadiness}%`],
-    ["Top Confidence", `${snapshot.hypothesisLineageSummary.topConfidencePercent}%`]
+    ["仮説数", snapshot.lineagesStatistics.hypothesisCount],
+    ["関係数", snapshot.lineagesStatistics.relationCount],
+    ["ファミリー数", snapshot.hypothesisFamilies.length],
+    ["孤立数", snapshot.hypothesisLineageSummary.orphanCount],
+    ["重複候補", snapshot.hypothesisLineageSummary.duplicateCandidateCount],
+    ["平均重み付き証拠", snapshot.hypothesisLineageSummary.averageWeightedEvidence],
+    ["平均準備度", `${snapshot.hypothesisLineageSummary.averageValidationReadiness}%`],
+    ["最高信頼度", `${snapshot.hypothesisLineageSummary.topConfidencePercent}%`]
   ]));
   renderLineageEditor(snapshot);
   setHtml("lineageNetwork", lineageNetworkHtml(snapshot.hypothesisLineage.nodes, snapshot.hypothesisLineage.edges));
-  setHtml("lineageStatistics", table(["Metric", "Value"], Object.entries(snapshot.lineagesStatistics).map(([k, v]) => [k, v])));
+  setHtml("lineageStatistics", table(["指標", "値"], Object.entries(snapshot.lineagesStatistics).map(([k, v]) => [k, v])));
   setHtml("lineageRelations", lineageRelationsHtml(snapshot));
-  setHtml("lineageFamilies", table(["Family", "Root", "Count", "Verified", "Rejected", "Avg Score", "Avg Confidence", "Evidence", "Contradictions", "Open Questions"], snapshot.hypothesisFamilies.map((x) => [x.name, x.rootHypothesis, x.hypothesisCount, x.verifiedCount, x.rejectedCount, x.averageScore, `${x.averageConfidence}%`, x.evidenceCount, x.contradictionCount, x.openQuestionCount])));
+  setHtml("lineageFamilies", table(["ファミリー", "ルート", "件数", "検証済み", "却下", "平均スコア", "平均信頼度", "証拠", "矛盾", "未解決項目"], snapshot.hypothesisFamilies.map((x) => [x.name, x.rootHypothesis, x.hypothesisCount, x.verifiedCount, x.rejectedCount, x.averageScore, `${x.averageConfidence}%`, x.evidenceCount, x.contradictionCount, x.openQuestionCount])));
   setHtml("evidenceWeightSettings", evidenceWeightEditorHtml(snapshot.evidenceWeights));
-  setHtml("weightedEvidenceSummary", table(["Evidence Source", "Weight", "Evidence Count", "Weighted Score"], snapshot.weightedEvidenceSummary.bySource.map((x) => [x.source, x.weight, x.evidenceCount, x.weightedScore])));
-  setHtml("validationReadinessTable", table(["Title", "Readiness", "Label", "Checklist Done"], snapshot.enrichedHypotheses.slice(0, 30).map((x) => [x.title, `${x.validationReadiness}%`, x.validationReadinessLabel, `${x.validationChecklist.filter((c) => c.done).length}/${x.validationChecklist.length}`])));
-  setHtml("duplicateHypotheses", snapshot.duplicateHypotheses.length ? table(["Source", "Target", "Similarity", "Suggested Relation"], snapshot.duplicateHypotheses.map((x) => [x.sourceTitle, x.targetTitle, `${x.similarity}%`, x.suggestedRelationType])) : `<div class="empty">No duplicate candidates.</div>`);
-  setHtml("orphanHypotheses", snapshot.orphanHypotheses.length ? table(["Title", "Status", "Score", "Confidence", "Source", "Suggested Relation Candidate"], snapshot.orphanHypotheses.map((x) => [x.title, x.status, x.score, x.confidence, x.source, x.suggestedRelationCandidate])) : `<div class="empty">No orphan hypotheses.</div>`);
-  setHtml("supersededHypotheses", snapshot.supersededHypotheses.length ? table(["Hypothesis", "Superseded By", "Note"], snapshot.supersededHypotheses.map((x) => [x.title, x.supersededBy, x.note])) : `<div class="empty">No superseded hypotheses.</div>`);
+  setHtml("weightedEvidenceSummary", table(["証拠の出所", "重み", "証拠数", "重み付きスコア"], snapshot.weightedEvidenceSummary.bySource.map((x) => [x.source, x.weight, x.evidenceCount, x.weightedScore])));
+  setHtml("validationReadinessTable", table(["タイトル", "準備度", "ラベル", "チェック完了"], snapshot.enrichedHypotheses.slice(0, 30).map((x) => [x.title, `${x.validationReadiness}%`, x.validationReadinessLabel, `${x.validationChecklist.filter((c) => c.done).length}/${x.validationChecklist.length}`])));
+  setHtml("duplicateHypotheses", snapshot.duplicateHypotheses.length ? table(["元", "先", "類似度", "推奨関係"], snapshot.duplicateHypotheses.map((x) => [x.sourceTitle, x.targetTitle, `${x.similarity}%`, x.suggestedRelationType])) : `<div class="empty">重複候補はありません。</div>`);
+  setHtml("orphanHypotheses", snapshot.orphanHypotheses.length ? table(["タイトル", "状態", "スコア", "信頼度", "出所", "推奨関係候補"], snapshot.orphanHypotheses.map((x) => [x.title, x.status, x.score, x.confidence, x.source, x.suggestedRelationCandidate])) : `<div class="empty">孤立した仮説はありません。</div>`);
+  setHtml("supersededHypotheses", snapshot.supersededHypotheses.length ? table(["仮説", "置き換え先", "メモ"], snapshot.supersededHypotheses.map((x) => [x.title, x.supersededBy, x.note])) : `<div class="empty">置き換え済み仮説はありません。</div>`);
   renderHypothesisCompare(snapshot);
-  setHtml("hypothesisTimeline", snapshot.hypothesisHistory.length ? table(["Date", "Hypothesis", "Event Type", "Before", "After", "Note"], snapshot.hypothesisHistory.map((x) => [formatDate(x.date), x.hypothesis, x.eventType, x.before || "-", x.after || "-", x.note || "-"])) : `<div class="empty">No hypothesis history yet.</div>`);
+  setHtml("hypothesisTimeline", snapshot.hypothesisHistory.length ? table(["日付", "仮説", "イベント種別", "変更前", "変更後", "メモ"], snapshot.hypothesisHistory.map((x) => [formatDate(x.date), x.hypothesis, x.eventType, x.before || "-", x.after || "-", x.note || "-"])) : `<div class="empty">仮説履歴はまだありません。</div>`);
   bindLineageEvents();
 }
 
@@ -728,24 +728,24 @@ function renderLineageEditor(snapshot) {
 }
 
 function lineageRelationsHtml(snapshot) {
-  if (!snapshot.hypothesisRelations.length) return `<div class="empty">No manual relations yet. Add a relation above.</div>`;
+  if (!snapshot.hypothesisRelations.length) return `<div class="empty">手動関係はまだありません。上のフォームから関係を追加してください。</div>`;
   const titleById = Object.fromEntries(snapshot.enrichedHypotheses.map((h) => [h.id, h.title]));
   const rows = snapshot.hypothesisRelations.map((r) => [
     escapeHtml(titleById[r.sourceId] || r.sourceId),
     `<select class="lineage-edit-type" data-id="${escapeHtml(r.id)}">${HYPOTHESIS_RELATION_TYPES.map((t) => `<option value="${escapeHtml(t)}" ${t === r.relationType ? "selected" : ""}>${escapeHtml(t)}</option>`).join("")}</select>`,
     escapeHtml(titleById[r.targetId] || r.targetId),
-    `<input class="lineage-edit-note" data-id="${escapeHtml(r.id)}" value="${escapeHtml(r.note || "")}" placeholder="Note">`,
-    `<button class="tiny-button lineage-save" data-id="${escapeHtml(r.id)}">Edit</button>`,
-    `<button class="tiny-button lineage-delete" data-id="${escapeHtml(r.id)}">Delete</button>`
+    `<input class="lineage-edit-note" data-id="${escapeHtml(r.id)}" value="${escapeHtml(r.note || "")}" placeholder="メモ">`,
+    `<button class="tiny-button lineage-save" data-id="${escapeHtml(r.id)}">編集</button>`,
+    `<button class="tiny-button lineage-delete" data-id="${escapeHtml(r.id)}">削除</button>`
   ]);
-  return `<table><thead><tr>${["Source", "Relation Type", "Target", "Note", "Edit", "Delete"].map((h) => `<th>${escapeHtml(h)}</th>`).join("")}</tr></thead><tbody>${rows.map((row) => `<tr>${row.map((cell) => `<td>${cell}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
+  return `<table><thead><tr>${["元", "関係タイプ", "先", "メモ", "編集", "削除"].map((h) => `<th>${escapeHtml(h)}</th>`).join("")}</tr></thead><tbody>${rows.map((row) => `<tr>${row.map((cell) => `<td>${cell}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
 }
 
 function lineageNetworkHtml(nodes, edges) {
-  if (!nodes.length) return `<div class="empty">No hypothesis nodes.</div>`;
+  if (!nodes.length) return `<div class="empty">仮説ノードはありません。</div>`;
   const shownNodes = nodes.slice(0, 24);
   const shownEdges = edges.slice(0, 40);
-  return `<div class="lineage-network"><div class="graph-title">Hypothesis Network / Nodes ${nodes.length} / Edges ${edges.length}</div><div class="lineage-nodes">${shownNodes.map((n) => `<div class="lineage-node"><strong>${escapeHtml(n.title)}</strong><span>${escapeHtml(n.status)} / Score ${escapeHtml(n.score)} / ${escapeHtml(n.confidencePercent)}%</span></div>`).join("")}</div><div class="graph-edges">${shownEdges.map((e) => `<div><strong>${escapeHtml(labelFromLineageNode(nodes, e.source))}</strong> -> <strong>${escapeHtml(labelFromLineageNode(nodes, e.target))}</strong> <span>${escapeHtml(e.relationType)} / ${escapeHtml(e.note || "-")}</span></div>`).join("")}</div></div>`;
+  return `<div class="lineage-network"><div class="graph-title">仮説ネットワーク / ノード ${nodes.length} / 接続 ${edges.length}</div><div class="lineage-nodes">${shownNodes.map((n) => `<div class="lineage-node"><strong>${escapeHtml(n.title)}</strong><span>${escapeHtml(n.status)} / スコア ${escapeHtml(n.score)} / ${escapeHtml(n.confidencePercent)}%</span></div>`).join("")}</div><div class="graph-edges">${shownEdges.map((e) => `<div><strong>${escapeHtml(labelFromLineageNode(nodes, e.source))}</strong> → <strong>${escapeHtml(labelFromLineageNode(nodes, e.target))}</strong> <span>${escapeHtml(e.relationType)} / ${escapeHtml(e.note || "-")}</span></div>`).join("")}</div></div>`;
 }
 
 function labelFromLineageNode(nodes, id) {
@@ -753,7 +753,7 @@ function labelFromLineageNode(nodes, id) {
 }
 
 function evidenceWeightEditorHtml(weights) {
-  return `<div class="form-grid compact">${Object.entries(weights).map(([source, weight]) => `<label>${escapeHtml(source)}<input class="evidence-weight-input" data-source="${escapeHtml(source)}" type="number" min="0" max="2" step="0.05" value="${escapeHtml(weight)}"></label>`).join("")}</div><div class="memo-actions"><button id="saveEvidenceWeightsButton" class="ghost-button">Save Evidence Weights</button><button id="resetEvidenceWeightsButton" class="ghost-button">Reset Evidence Weights</button><span id="evidenceWeightStatus"></span></div>`;
+  return `<div class="form-grid compact">${Object.entries(weights).map(([source, weight]) => `<label>${escapeHtml(source)}<input class="evidence-weight-input" data-source="${escapeHtml(source)}" type="number" min="0" max="2" step="0.05" value="${escapeHtml(weight)}"></label>`).join("")}</div><div class="memo-actions"><button id="saveEvidenceWeightsButton" class="ghost-button">証拠の重みを保存</button><button id="resetEvidenceWeightsButton" class="ghost-button">証拠の重みをリセット</button><span id="evidenceWeightStatus"></span></div>`;
 }
 
 function renderHypothesisCompare(snapshot) {
@@ -764,7 +764,7 @@ function renderHypothesisCompare(snapshot) {
     const a = snapshot.enrichedHypotheses.find((x) => x.id === byId("compareHypothesisA")?.value) || snapshot.enrichedHypotheses[0];
     const b = snapshot.enrichedHypotheses.find((x) => x.id === byId("compareHypothesisB")?.value) || snapshot.enrichedHypotheses[1];
     const compare = hypothesisCompareFromPair(a, b);
-    setHtml("hypothesisCompare", compare ? `${table(["Metric", compare.hypothesisA, compare.hypothesisB, "Winner"], compare.rows.map((x) => [x.label, x.a, x.b, x.winner]))}<h4>Result</h4>${table(["Item", "Value"], Object.entries(compare.result).map(([k, v]) => [k, v]))}` : `<div class="empty">At least two hypotheses are required.</div>`);
+    setHtml("hypothesisCompare", compare ? `${table(["指標", compare.hypothesisA, compare.hypothesisB, "優位"], compare.rows.map((x) => [x.label, x.a, x.b, x.winner]))}<h4>結果</h4>${table(["項目", "値"], Object.entries(compare.result).map(([k, v]) => [k, v]))}` : `<div class="empty">比較には2つ以上の仮説が必要です。</div>`);
   };
   if (snapshot.enrichedHypotheses[1]) byId("compareHypothesisB").value = snapshot.enrichedHypotheses[1].id;
   byId("compareHypothesisA")?.addEventListener("change", renderSelectedCompare);
@@ -774,21 +774,21 @@ function renderHypothesisCompare(snapshot) {
 
 function hypothesisCompareFromPair(a, b) {
   if (!a || !b) return null;
-  const compare = (label, av, bv, bigger = true) => ({ label, a: av, b: bv, winner: av === bv ? "Tie" : (bigger ? av > bv : av < bv) ? a.title : b.title });
+  const compare = (label, av, bv, bigger = true) => ({ label, a: av, b: bv, winner: av === bv ? "同等" : (bigger ? av > bv : av < bv) ? a.title : b.title });
   return {
     hypothesisA: a.title,
     hypothesisB: b.title,
     rows: [
-      compare("Status", a.status, b.status),
-      compare("Score 2.0", a.score2, b.score2),
-      compare("Confidence Percent", a.confidencePercent, b.confidencePercent),
-      compare("Evidence Count", a.evidence.length, b.evidence.length),
-      compare("Weighted Evidence", a.weightedEvidenceScore, b.weightedEvidenceScore),
-      compare("Source Diversity", a.sourceDiversity, b.sourceDiversity),
-      compare("Contradiction Count", a.contradictions.length, b.contradictions.length, false),
-      compare("Open Question Count", a.openQuestions.length, b.openQuestions.length, false),
-      compare("Validation Readiness", a.validationReadiness, b.validationReadiness),
-      compare("History Count", a.historyCount, b.historyCount)
+      compare("状態", a.status, b.status),
+      compare("スコア2.0", a.score2, b.score2),
+      compare("信頼度%", a.confidencePercent, b.confidencePercent),
+      compare("証拠数", a.evidence.length, b.evidence.length),
+      compare("重み付き証拠", a.weightedEvidenceScore, b.weightedEvidenceScore),
+      compare("出所の多様性", a.sourceDiversity, b.sourceDiversity),
+      compare("矛盾数", a.contradictions.length, b.contradictions.length, false),
+      compare("未解決項目数", a.openQuestions.length, b.openQuestions.length, false),
+      compare("検証準備度", a.validationReadiness, b.validationReadiness),
+      compare("履歴数", a.historyCount, b.historyCount)
     ],
     result: {
       strongerEvidence: a.weightedEvidenceScore >= b.weightedEvidenceScore ? a.title : b.title,
@@ -809,7 +809,7 @@ function bindLineageEvents() {
       relationType: byId("lineageType")?.value,
       note: byId("lineageNote")?.value || ""
     });
-    setText("lineageRelationStatus", "Relation saved.");
+    setText("lineageRelationStatus", "関係を保存しました。");
     invalidateLineageCache();
     renderLineage();
     renderDashboard();
@@ -823,7 +823,7 @@ function bindLineageEvents() {
     renderLineage();
   }));
   document.querySelectorAll(".lineage-delete").forEach((button) => button.addEventListener("click", () => {
-    if (!confirm("Delete this relation?")) return;
+    if (!confirm("この関係を削除しますか？")) return;
     HypothesisLineageStore.deleteRelation(button.dataset.id);
     invalidateLineageCache();
     renderLineage();
@@ -833,7 +833,7 @@ function bindLineageEvents() {
     const weights = {};
     document.querySelectorAll(".evidence-weight-input").forEach((input) => { weights[input.dataset.source] = input.value; });
     EvidenceWeightStore.save(weights);
-    setText("evidenceWeightStatus", "Weights saved.");
+    setText("evidenceWeightStatus", "重みを保存しました。");
     invalidateLineageCache();
     renderLineage();
     renderHypothesis();
@@ -841,7 +841,7 @@ function bindLineageEvents() {
   });
   byId("resetEvidenceWeightsButton")?.addEventListener("click", () => {
     EvidenceWeightStore.reset();
-    setText("evidenceWeightStatus", "Weights reset.");
+    setText("evidenceWeightStatus", "重みをリセットしました。");
     invalidateLineageCache();
     renderLineage();
     renderHypothesis();
@@ -862,45 +862,45 @@ function invalidateLineageCache() {
 function renderStrategy() {
   if (!byId("strategyOverview")) return;
   if (typeof ResearchStrategyEngine === "undefined") {
-    setHtml("strategyOverview", `<span class="pill">Research Strategy</span><h3>Research Strategy module is not loaded.</h3>`);
+    setHtml("strategyOverview", `<span class="pill">研究戦略</span><h3>研究戦略モジュールが読み込まれていません。</h3>`);
     return;
   }
   const snapshot = new ResearchStrategyEngine({ analysisEngine: engine, researchManager }).snapshot();
   engine.results.researchStrategy = snapshot;
   const s = snapshot.strategySummary;
-  setHtml("strategyOverview", `<span class="pill">Research Strategy Engine</span><h3>${escapeHtml(s.currentBestResearch || "No Research Strategy yet.")}</h3><p>${escapeHtml(s.summary)}</p><p>This is Research priority, not trading priority. It never rewrites EA, CSV, or trading conditions.</p>`);
+  setHtml("strategyOverview", `<span class="pill">研究戦略エンジン</span><h3>${escapeHtml(s.currentBestResearch || "研究戦略はまだありません。")}</h3><p>${escapeHtml(s.summary)}</p><p>これは売買優先度ではなく研究優先度です。EA、CSV、売買条件は変更しません。</p>`);
   setHtml("strategyMetrics", metrics([
-    ["Candidates", snapshot.researchStrategy.length],
-    ["Highest ROI", s.highestROI],
-    ["Highest Impact", s.highestImpact],
-    ["Lowest Cost", s.lowestCost],
-    ["Current Blocker", s.currentBlocker],
-    ["Coverage", s.coverage],
-    ["Blockers", s.blockerCount],
-    ["Roadmap Progress", `${s.roadmapProgress}%`]
+    ["候補数", snapshot.researchStrategy.length],
+    ["最高ROI", s.highestROI],
+    ["最大インパクト", s.highestImpact],
+    ["最小コスト", s.lowestCost],
+    ["現在の阻害要因", s.currentBlocker],
+    ["カバー率", s.coverage],
+    ["阻害要因", s.blockerCount],
+    ["ロードマップ進捗", `${s.roadmapProgress}%`]
   ]));
-  setHtml("strategyPriorityMatrix", table(["Priority", "Count", "Top Items"], snapshot.priorityMatrix.map((x) => [x.priority, x.count, x.items.slice(0, 3).map((i) => i.title).join(" / ") || "-"])));
-  setHtml("strategyRoiTable", table(["Research", "Priority", "ROI", "Value", "Cost", "Risk", "Target", "Reason"], snapshot.researchROI.slice(0, 20).map((x) => [x.title, x.priority, x.researchROI, x.expectedResearchValue, x.researchCost, x.researchRisk, x.target, x.reason])));
-  setHtml("strategyCoverage", table(["Area", "Base", "Researched", "Coverage", "Status"], snapshot.coverage.map((x) => [x.area, x.baseCount, x.researchedCount, `${x.coveragePercent}%`, x.status])));
-  setHtml("strategyBlockers", snapshot.blockers.length ? table(["Blocker", "Count"], snapshot.blockers.map((x) => [x.name, x.count])) : `<div class="empty">No blockers detected.</div>`);
+  setHtml("strategyPriorityMatrix", table(["優先度", "件数", "上位項目"], snapshot.priorityMatrix.map((x) => [x.priority, x.count, x.items.slice(0, 3).map((i) => i.title).join(" / ") || "-"])));
+  setHtml("strategyRoiTable", table(["研究", "優先度", "ROI", "価値", "コスト", "リスク", "対象", "理由"], snapshot.researchROI.slice(0, 20).map((x) => [x.title, x.priority, x.researchROI, x.expectedResearchValue, x.researchCost, x.researchRisk, x.target, x.reason])));
+  setHtml("strategyCoverage", table(["領域", "基準", "研究済み", "カバー率", "状態"], snapshot.coverage.map((x) => [x.area, x.baseCount, x.researchedCount, `${x.coveragePercent}%`, x.status])));
+  setHtml("strategyBlockers", snapshot.blockers.length ? table(["阻害要因", "件数"], snapshot.blockers.map((x) => [x.name, x.count])) : `<div class="empty">阻害要因は検出されていません。</div>`);
   setHtml("strategyQuickWin", strategyCardList(snapshot.quickWin));
   setHtml("strategyLongProject", strategyCardList(snapshot.longProject));
-  setHtml("strategyRoadmap", table(["Step", "Research", "Priority", "ROI", "Action", "Blocker"], snapshot.roadmap.map((x) => [x.step, x.title, x.priority, x.roi, x.action, x.blocker])));
-  setHtml("strategyDuplicate", snapshot.duplicateResearch.length ? table(["Research A", "Research B", "Similarity", "Note"], snapshot.duplicateResearch.map((x) => [x.source, x.target, `${x.similarity}%`, x.note])) : `<div class="empty">No duplicate Research detected.</div>`);
-  setHtml("strategyMissing", snapshot.missingResearch.length ? table(["Area", "Coverage", "Status", "Reason"], snapshot.missingResearch.map((x) => [x.area, `${x.coveragePercent}%`, x.status, x.reason])) : `<div class="empty">No missing Research area detected.</div>`);
-  setHtml("strategyDependencies", table(["Research", "Required Before", "Blockers", "Relation"], snapshot.dependencyAnalyzer.slice(0, 30).map((x) => [x.research, x.requiredBefore, x.blockers, x.relation])));
+  setHtml("strategyRoadmap", table(["段階", "研究", "優先度", "ROI", "行動", "阻害要因"], snapshot.roadmap.map((x) => [x.step, x.title, x.priority, x.roi, x.action, x.blocker])));
+  setHtml("strategyDuplicate", snapshot.duplicateResearch.length ? table(["研究A", "研究B", "類似度", "メモ"], snapshot.duplicateResearch.map((x) => [x.source, x.target, `${x.similarity}%`, x.note])) : `<div class="empty">重複研究は検出されていません。</div>`);
+  setHtml("strategyMissing", snapshot.missingResearch.length ? table(["領域", "カバー率", "状態", "理由"], snapshot.missingResearch.map((x) => [x.area, `${x.coveragePercent}%`, x.status, x.reason])) : `<div class="empty">不足している研究領域は検出されていません。</div>`);
+  setHtml("strategyDependencies", table(["研究", "事前に必要", "阻害要因", "関係"], snapshot.dependencyAnalyzer.slice(0, 30).map((x) => [x.research, x.requiredBefore, x.blockers, x.relation])));
   setHtml("strategyHeatmap", researchHeatmapHtml(snapshot.researchHeatMap));
 }
 
 function strategyCardList(items) {
-  if (!items?.length) return `<div class="empty">No items.</div>`;
+  if (!items?.length) return `<div class="empty">項目はありません。</div>`;
   return `<div class="workspace-list">${items.slice(0, 10).map((x, index) => `<div class="workspace-item"><div class="workspace-rank">${index + 1}</div><div><h4>${escapeHtml(x.title)}</h4><p><span class="tag">${escapeHtml(x.priority)}</span> <span class="tag">ROI ${escapeHtml(x.researchROI)}</span> <span class="tag">${escapeHtml(x.researchCost)}</span> <span class="tag">Risk ${escapeHtml(x.researchRisk)}</span></p><p>${escapeHtml(x.reason)}</p></div></div>`).join("")}</div>`;
 }
 
 function researchHeatmapHtml(rows) {
-  if (!rows?.length) return `<div class="empty">No heatmap data.</div>`;
+  if (!rows?.length) return `<div class="empty">ヒートマップデータはありません。</div>`;
   const max = Math.max(1, ...rows.map((x) => x.coveragePercent || 0));
-  return `<table class="heatmap"><thead><tr><th>Area</th><th>Coverage</th><th>State</th></tr></thead><tbody>${rows.map((x) => {
+  return `<table class="heatmap"><thead><tr><th>領域</th><th>カバー率</th><th>状態</th></tr></thead><tbody>${rows.map((x) => {
     const alpha = Math.max(.12, (x.coveragePercent || 0) / max * .75);
     return `<tr><td>${escapeHtml(x.area)}</td><td style="background: rgba(57, 216, 255, ${alpha})">${escapeHtml(`${x.coveragePercent}%`)}</td><td>${escapeHtml(x.state)}</td></tr>`;
   }).join("")}</tbody></table>`;
@@ -914,8 +914,8 @@ function renderSearch() {
   const query = (input?.value || stored || "").trim();
   const index = buildSearchIndex();
   if (!query) {
-    setText("globalSearchStatus", `${index.length} searchable items`);
-    setHtml("globalSearchResults", `<div class="empty">Type a keyword to search Research, Hypothesis, Knowledge Graph, TopNG, and Engine data.</div>`);
+    setText("globalSearchStatus", `${index.length}件を検索できます`);
+    setHtml("globalSearchResults", `<div class="empty">キーワードを入力すると、研究・仮説・ナレッジグラフ・TopNG・エンジンデータを検索できます。</div>`);
     return;
   }
   const tokens = query.toLowerCase().split(/\s+/).filter(Boolean);
@@ -924,8 +924,8 @@ function renderSearch() {
     const score = tokens.reduce((acc, token) => acc + (haystack.includes(token) ? 1 : 0), 0);
     return { ...item, score };
   }).filter((x) => x.score > 0).sort((a, b) => b.score - a.score || a.type.localeCompare(b.type)).slice(0, 50);
-  setText("globalSearchStatus", `${rows.length} results / ${index.length} searchable items`);
-  setHtml("globalSearchResults", rows.length ? table(["Type", "Title", "Detail", "Score"], rows.map((x) => [x.type, x.title, x.detail, x.score])) : `<div class="empty">No result for "${escapeHtml(query)}".</div>`);
+  setText("globalSearchStatus", `${rows.length}件 / 検索対象 ${index.length}件`);
+  setHtml("globalSearchResults", rows.length ? table(["種類", "タイトル", "詳細", "スコア"], rows.map((x) => [x.type, x.title, x.detail, x.score])) : `<div class="empty">「${escapeHtml(query)}」の検索結果はありません。</div>`);
 }
 
 function buildSearchIndex() {
@@ -946,23 +946,23 @@ function buildSearchIndex() {
 
 function hypothesisCardHtml(h) {
   const lineage = engine.results.hypothesisLineage?.enrichedHypotheses?.find((x) => x.id === h.id);
-  const warning = lineage?.superseded ? `<p class="warning-list">Superseded Warning: This hypothesis has a Supersedes relation.</p>` : lineage?.possibleDuplicate ? `<p class="warning-list">Possible Duplicate Warning: Similar hypothesis detected.</p>` : "";
-  return `<div class="workspace-item"><div class="workspace-rank">${escapeHtml(lineage?.score2 ?? h.score)}</div><div><h4>${escapeHtml(h.title)}</h4><p><span class="tag">${escapeHtml(lineage?.confidence2 || h.confidence)}</span> <span class="tag">${escapeHtml(h.source)}</span> <span class="tag">${escapeHtml(h.engine || h.condition || "-")}</span> <span class="tag">Readiness ${escapeHtml(lineage?.validationReadiness ?? "-")}%</span></p>${warning}<p><strong>Hypothesis:</strong> ${escapeHtml(h.hypothesis)}</p><p><strong>Reason:</strong> ${escapeHtml(h.reason)}</p><div class="form-grid compact"><label>Status<select class="hypothesis-status" data-id="${escapeHtml(h.id)}">${HYPOTHESIS_STATUSES.map((status) => `<option value="${escapeHtml(status)}" ${status === h.status ? "selected" : ""}>${escapeHtml(status)}</option>`).join("")}</select></label><label>Confidence<input type="text" value="${escapeHtml(lineage ? `${lineage.confidence2} / ${lineage.confidencePercent}%` : h.confidence)}" readonly></label><label>Score 2.0<input type="text" value="${escapeHtml(lineage ? `${lineage.score2}/100` : `${h.score}/100`)}" readonly></label><label>Evidence<input type="text" value="${h.evidence.length}" readonly></label></div>${lineage ? scoreBreakdownHtml(lineage.scoreBreakdown) : ""}<h5>Evidence</h5>${table(["Source", "Title", "Value", "Polarity", "Strength", "Weighted"], (lineage?.weightedEvidence || h.evidence).slice(0, 8).map((e) => [e.source, e.title, e.value, e.polarity, e.strength || "-", e.weightedScore ?? "-"]))}<h5>Family / Relations</h5><p>${escapeHtml(lineage ? `${lineage.family} / Parent ${lineage.parents.length} / Child ${lineage.children.length} / Supports ${lineage.supports.length} / Contradicts ${lineage.contradicts.length} / History ${lineage.historyCount}` : "-")}</p><h5>Validation Checklist</h5>${lineage ? checklistHtml(lineage.validationChecklist) : ""}<h5>Open Questions</h5><p>${escapeHtml(h.openQuestions.join(" / ") || "-")}</p></div></div>`;
+  const warning = lineage?.superseded ? `<p class="warning-list">置き換え警告: この仮説には置き換え関係があります。</p>` : lineage?.possibleDuplicate ? `<p class="warning-list">重複候補警告: 類似した仮説があります。</p>` : "";
+  return `<div class="workspace-item"><div class="workspace-rank">${escapeHtml(lineage?.score2 ?? h.score)}</div><div><h4>${escapeHtml(h.title)}</h4><p><span class="tag">${escapeHtml(lineage?.confidence2 || h.confidence)}</span> <span class="tag">${escapeHtml(h.source)}</span> <span class="tag">${escapeHtml(h.engine || h.condition || "-")}</span> <span class="tag">準備度 ${escapeHtml(lineage?.validationReadiness ?? "-")}%</span></p>${warning}<p><strong>仮説:</strong> ${escapeHtml(h.hypothesis)}</p><p><strong>理由:</strong> ${escapeHtml(h.reason)}</p><div class="form-grid compact"><label>状態<select class="hypothesis-status" data-id="${escapeHtml(h.id)}">${HYPOTHESIS_STATUSES.map((status) => `<option value="${escapeHtml(status)}" ${status === h.status ? "selected" : ""}>${escapeHtml(status)}</option>`).join("")}</select></label><label>信頼度<input type="text" value="${escapeHtml(lineage ? `${lineage.confidence2} / ${lineage.confidencePercent}%` : h.confidence)}" readonly></label><label>スコア2.0<input type="text" value="${escapeHtml(lineage ? `${lineage.score2}/100` : `${h.score}/100`)}" readonly></label><label>証拠<input type="text" value="${h.evidence.length}" readonly></label></div>${lineage ? scoreBreakdownHtml(lineage.scoreBreakdown) : ""}<h5>証拠</h5>${table(["出所", "タイトル", "値", "方向", "強さ", "重み"], (lineage?.weightedEvidence || h.evidence).slice(0, 8).map((e) => [e.source, e.title, e.value, e.polarity, e.strength || "-", e.weightedScore ?? "-"]))}<h5>ファミリー / 関係</h5><p>${escapeHtml(lineage ? `${lineage.family} / 親 ${lineage.parents.length} / 子 ${lineage.children.length} / 支持 ${lineage.supports.length} / 矛盾 ${lineage.contradicts.length} / 履歴 ${lineage.historyCount}` : "-")}</p><h5>検証チェックリスト</h5>${lineage ? checklistHtml(lineage.validationChecklist) : ""}<h5>未解決項目</h5><p>${escapeHtml(h.openQuestions.join(" / ") || "-")}</p></div></div>`;
 }
 
 function scoreBreakdownHtml(b) {
   if (!b) return "";
-  return `<div class="score-breakdown">${table(["Score Item", "Value"], [
-    ["Base Evidence", b.baseEvidence],
-    ["Quality Bonus", b.qualityBonus],
-    ["Cross CSV Bonus", b.crossCsvBonus],
-    ["Stability Bonus", b.stabilityBonus],
-    ["Timeline Bonus", b.timelineBonus],
-    ["Validation Bonus", b.validationBonus],
-    ["Contradiction Penalty", b.contradictionPenalty],
-    ["Open Question Penalty", b.openQuestionPenalty],
-    ["Lineage Penalty", b.lineagePenalty],
-    ["Final Score", b.finalScore]
+  return `<div class="score-breakdown">${table(["スコア項目", "値"], [
+    ["基本証拠", b.baseEvidence],
+    ["品質ボーナス", b.qualityBonus],
+    ["Cross CSVボーナス", b.crossCsvBonus],
+    ["安定度ボーナス", b.stabilityBonus],
+    ["タイムラインボーナス", b.timelineBonus],
+    ["検証ボーナス", b.validationBonus],
+    ["矛盾ペナルティ", b.contradictionPenalty],
+    ["未解決項目ペナルティ", b.openQuestionPenalty],
+    ["系譜ペナルティ", b.lineagePenalty],
+    ["最終スコア", b.finalScore]
   ])}</div>`;
 }
 
@@ -978,29 +978,29 @@ function workspaceActionsHtml(item, state = {}) {
   const id = escapeHtml(item.id || item.title || item.label);
   const label = escapeHtml(item.title || item.label || item.id);
   const type = escapeHtml(item.type || "Workspace");
-  return `<button class="tiny-button workspace-bookmark" data-id="${id}" data-label="${label}" data-type="${type}">${state.bookmarked ? "Remove Bookmark" : "Bookmark"}</button> <button class="tiny-button workspace-pin" data-id="${id}" data-label="${label}" data-type="${type}">${state.pinned ? "Unpin" : "Pin"}</button>`;
+  return `<button class="tiny-button workspace-bookmark" data-id="${id}" data-label="${label}" data-type="${type}">${state.bookmarked ? "ブックマーク解除" : "ブックマーク"}</button> <button class="tiny-button workspace-pin" data-id="${id}" data-label="${label}" data-type="${type}">${state.pinned ? "固定解除" : "固定"}</button>`;
 }
 
 function workspaceSavedItemHtml(item, rank, mode) {
   const removeState = mode === "bookmark" ? { bookmarked: true } : { pinned: true };
-  return `<div class="workspace-item"><div class="workspace-rank">${rank}</div><div><h4>${escapeHtml(item.label || item.title || item.id)}</h4><p><span class="tag">${escapeHtml(item.type || "Workspace")}</span> <span class="tag">${escapeHtml(item.status || "-")}</span> <span class="tag">${escapeHtml(item.priority || "-")}</span></p><p>Created: ${escapeHtml(formatDate(item.createdAt))}</p><div class="mini-actions">${workspaceActionsHtml(item, removeState)}</div></div></div>`;
+  return `<div class="workspace-item"><div class="workspace-rank">${rank}</div><div><h4>${escapeHtml(item.label || item.title || item.id)}</h4><p><span class="tag">${escapeHtml(item.type || "Workspace")}</span> <span class="tag">${escapeHtml(item.status || "-")}</span> <span class="tag">${escapeHtml(item.priority || "-")}</span></p><p>作成日: ${escapeHtml(formatDate(item.createdAt))}</p><div class="mini-actions">${workspaceActionsHtml(item, removeState)}</div></div></div>`;
 }
 
 function graphPreviewHtml(nodes, edges, title) {
-  if (!nodes?.length) return `<div class="empty">No graph data for ${escapeHtml(title)}.</div>`;
+  if (!nodes?.length) return `<div class="empty">${escapeHtml(title)} のグラフデータはありません。</div>`;
   const shownNodes = nodes.slice(0, 18);
   const shownEdges = edges.slice(0, 30);
-  return `<div class="graph-panel"><div class="graph-title">${escapeHtml(title)} / Nodes ${nodes.length} / Edges ${edges.length}</div><div class="graph-nodes">${shownNodes.map((node) => `<span class="graph-node type-${escapeHtml(node.type)}">${escapeHtml(node.label)}<small>${escapeHtml(node.type)}</small></span>`).join("")}</div><div class="graph-edges">${shownEdges.map((edge) => `<div><strong>${escapeHtml(labelFromNodeId(edge.source))}</strong> -> <strong>${escapeHtml(labelFromNodeId(edge.target))}</strong> <span>${escapeHtml(edge.label || edge.type)} / ${escapeHtml(edge.weight)}</span></div>`).join("")}</div></div>`;
+  return `<div class="graph-panel"><div class="graph-title">${escapeHtml(title)} / ノード ${nodes.length} / 接続 ${edges.length}</div><div class="graph-nodes">${shownNodes.map((node) => `<span class="graph-node type-${escapeHtml(node.type)}">${escapeHtml(node.label)}<small>${escapeHtml(node.type)}</small></span>`).join("")}</div><div class="graph-edges">${shownEdges.map((edge) => `<div><strong>${escapeHtml(labelFromNodeId(edge.source))}</strong> → <strong>${escapeHtml(labelFromNodeId(edge.target))}</strong> <span>${escapeHtml(edge.label || edge.type)} / ${escapeHtml(edge.weight)}</span></div>`).join("")}</div></div>`;
 }
 
 function clusterTreeHtml(clusters) {
-  if (!clusters?.length) return `<div class="empty">No cluster data.</div>`;
-  return `<div class="cluster-tree">${clusters.map((cluster) => `<div class="cluster-branch"><h4>${escapeHtml(cluster.cluster)}</h4><p>${escapeHtml(`Count ${cluster.count} / Avg DNA ${cluster.averageDnaScore || "-"}`)}</p><div>${(cluster.engines || []).map((engineName) => `<span class="tag">${escapeHtml(engineName)}</span>`).join(" ")}</div></div>`).join("")}</div>`;
+  if (!clusters?.length) return `<div class="empty">クラスタデータはありません。</div>`;
+  return `<div class="cluster-tree">${clusters.map((cluster) => `<div class="cluster-branch"><h4>${escapeHtml(cluster.cluster)}</h4><p>${escapeHtml(`件数 ${cluster.count} / 平均DNA ${cluster.averageDnaScore || "-"}`)}</p><div>${(cluster.engines || []).map((engineName) => `<span class="tag">${escapeHtml(engineName)}</span>`).join(" ")}</div></div>`).join("")}</div>`;
 }
 
 function flowHtml(flow) {
-  if (!flow?.length) return `<div class="empty">No flow data.</div>`;
-  return `<div class="flow-list">${flow.map((x) => `<div class="flow-row"><span>${escapeHtml(x.from)}</span><strong>-></strong><span>${escapeHtml(x.to)}</span><em>${escapeHtml(x.value)}</em><small>${escapeHtml(x.label)}</small></div>`).join("")}</div>`;
+  if (!flow?.length) return `<div class="empty">フローデータはありません。</div>`;
+  return `<div class="flow-list">${flow.map((x) => `<div class="flow-row"><span>${escapeHtml(x.from)}</span><strong>→</strong><span>${escapeHtml(x.to)}</span><em>${escapeHtml(x.value)}</em><small>${escapeHtml(x.label)}</small></div>`).join("")}</div>`;
 }
 
 function labelFromNodeId(id) {
@@ -1013,15 +1013,15 @@ function labelFromResearchId(nodes, id) {
 
 function renderPerformancePanel() {
   const p = PerformanceUtil.analysisStatistics(engine);
-  setHtml("performancePanel", `<h3>Performance Summary</h3>${metrics([
-    ["Analysis Time", `${p.analysisTime}ms`],
-    ["Cross CSV Time", `${p.crossTime}ms`],
-    ["Brain Time", `${p.brainTime}ms`],
-    ["Data Quality Time", `${p.qualityTime}ms`],
-    ["Memory", p.memory],
-    ["Analysis Version", p.analysisVersion],
-    ["Cache Hit Rate", `${p.cacheHitRate}%`],
-    ["Cache", p.cacheStatus]
+  setHtml("performancePanel", `<h3>パフォーマンス概要</h3>${metrics([
+    ["分析時間", `${p.analysisTime}ms`],
+    ["Cross CSV時間", `${p.crossTime}ms`],
+    ["Brain時間", `${p.brainTime}ms`],
+    ["データ品質時間", `${p.qualityTime}ms`],
+    ["メモリ", p.memory],
+    ["分析バージョン", p.analysisVersion],
+    ["キャッシュヒット率", `${p.cacheHitRate}%`],
+    ["キャッシュ", p.cacheStatus]
   ])}`);
 }
 
@@ -1029,23 +1029,23 @@ function renderWarnings() {
   const warnings = [];
   engine.results.validation.forEach((v) => (v.warnings || []).forEach((w) => warnings.push(`${v.fileName}: ${w}`)));
   if (engine.results.comparison?.warning) warnings.push(engine.results.comparison.warning);
-  setHtml("analysisWarnings", warnings.length ? `<h3>Analysis Warnings</h3><div class="warning-list">${warnings.map((w) => `<div>${escapeHtml(w)}</div>`).join("")}</div>` : `<h3>Analysis Warnings</h3><p class="empty">No warnings.</p>`);
+  setHtml("analysisWarnings", warnings.length ? `<h3>分析警告</h3><div class="warning-list">${warnings.map((w) => `<div>${escapeHtml(w)}</div>`).join("")}</div>` : `<h3>分析警告</h3><p class="empty">警告はありません。</p>`);
 }
 
 function renderLabReport() {
-  setText("researchReportText", engine.results.report?.text || "Load CSV files to generate report.");
+  setText("researchReportText", engine.results.report?.text || "CSVファイルを読み込むとレポートを生成します。");
   const c = engine.results.comparison;
-  setHtml("researchComparison", c ? table(["Metric", "Diff"], [["Trade", signed(c.trades)], ["NearMiss", signed(c.nearMiss)], ["WinRate", `${signed(round(c.winRate))}%`], ["PF", signed(round(c.profitFactor))], ["Research Score", `${stars(c.previousTopResearch)} -> ${stars(c.currentTopResearch)}`], ["Warning", c.warning || "-"]]) : `<div class="empty">No previous Analyzer run yet.</div>`);
+  setHtml("researchComparison", c ? table(["指標", "差分"], [["取引数", signed(c.trades)], ["NearMiss", signed(c.nearMiss)], ["勝率", `${signed(round(c.winRate))}%`], ["PF", signed(round(c.profitFactor))], ["研究スコア", `${stars(c.previousTopResearch)} → ${stars(c.currentTopResearch)}`], ["警告", c.warning || "-"]]) : `<div class="empty">前回のAnalyzer実行履歴はまだありません。</div>`);
   setHtml("researchProgressDetails", progressHtml(true));
 }
 
 function renderTrade() {
-  drawBar("tradeEngineChart", engine.results.tradeByEngine.map((x) => x.name), engine.results.tradeByEngine.map((x) => round(x.winRate)), "WinRate %");
+  drawBar("tradeEngineChart", engine.results.tradeByEngine.map((x) => x.name), engine.results.tradeByEngine.map((x) => round(x.winRate)), "勝率 %");
   const weekdays = groupTradeByWeekday(engine.results.trades);
-  drawBar("weekdayChart", weekdays.map((x) => x.name), weekdays.map((x) => round(x.winRate)), "Weekday WinRate %");
-  setHtml("tradeTable", table(["Engine", "Trades", "WinRate", "Pips", "Avg", "Avg Hold", "WinStreak", "LossStreak"], engine.results.tradeByEngine.map((x) => [x.name, x.trades, pct(x.winRate), round(x.pips), round(x.averagePips), `${round(x.averageHolding)} min`, x.streakWin, x.streakLoss])));
-  setHtml("holdingTable", table(["Holding", "Trades", "WinRate", "AvgPips", "Status"], engine.results.holding.map((x) => [x.bucket, x.trades, pct(x.winRate), round(x.averagePips), x.status])));
-  setHtml("spreadTable", table(["Spread", "Trades", "NearMiss", "WinRate", "AvgPips", "AvgSpread"], engine.results.spread.map((x) => [x.bucket, x.trades, x.nearMiss, pct(x.winRate), round(x.averagePips), round(x.averageSpread)])));
+  drawBar("weekdayChart", weekdays.map((x) => x.name), weekdays.map((x) => round(x.winRate)), "曜日別勝率 %");
+  setHtml("tradeTable", table(["エンジン", "取引数", "勝率", "Pips", "平均", "平均保有", "連勝", "連敗"], engine.results.tradeByEngine.map((x) => [x.name, x.trades, pct(x.winRate), round(x.pips), round(x.averagePips), `${round(x.averageHolding)}分`, x.streakWin, x.streakLoss])));
+  setHtml("holdingTable", table(["保有時間", "取引数", "勝率", "平均Pips", "状態"], engine.results.holding.map((x) => [x.bucket, x.trades, pct(x.winRate), round(x.averagePips), x.status])));
+  setHtml("spreadTable", table(["スプレッド", "取引数", "NearMiss", "勝率", "平均Pips", "平均スプレッド"], engine.results.spread.map((x) => [x.bucket, x.trades, x.nearMiss, pct(x.winRate), round(x.averagePips), round(x.averageSpread)])));
 }
 
 function renderEngine() {
@@ -1057,17 +1057,17 @@ function renderEngine() {
       <h4>${escapeHtml(e.engine)}</h4>
       <span class="health ${healthClass(e.health)}">${escapeHtml(e.health)}</span>
       <div class="kv">
-        <span>Research Score</span><strong>${e.researchScore}</strong>
-        <span>Confidence</span><strong>${escapeHtml(e.confidence)}</strong>
-        <span>Trades</span><strong>${fmt(e.trade?.trades || 0)}</strong>
+        <span>研究スコア</span><strong>${e.researchScore}</strong>
+        <span>信頼度</span><strong>${escapeHtml(e.confidence)}</strong>
+        <span>取引数</span><strong>${fmt(e.trade?.trades || 0)}</strong>
         <span>NearMiss</span><strong>${fmt(engine.results.nearMiss.byEngine?.find((n) => normalizeName(n.name) === normalizeName(e.engine))?.count || 0)}</strong>
         <span>TimeOK</span><strong>${fmt(e.timeOk)}</strong>
-        <span>EntryRate</span><strong>${pct(e.entryRate)}</strong>
+        <span>エントリー率</span><strong>${pct(e.entryRate)}</strong>
         <span>TopNG</span><strong>${escapeHtml(e.topNg.map((x) => x.name).join(" / ") || "-")}</strong>
       </div>
-      <div class="score-breakdown">${table(["Score Detail", "Point"], e.breakdown.map((x) => [x[0], x[1]]))}</div>
+      <div class="score-breakdown">${table(["スコア詳細", "点数"], e.breakdown.map((x) => [x[0], x[1]]))}</div>
     </div>
-  `).join("") || `<div class="empty">Load EngineActivity CSV.</div>`);
+  `).join("") || `<div class="empty">EngineActivity CSVを読み込んでください。</div>`);
   setHtml("topNgTable", topNgTable());
   drawRadar("engineRadarChart", list[0] || engine.results.engineActivity[0]);
 }
@@ -1077,84 +1077,84 @@ function renderEngineFilter() {
   if (!select) return;
   const options = ["All Engines", ...engine.results.engineActivity.map((e) => e.engine)];
   const current = engine.results.selectedEngine || "All Engines";
-  select.innerHTML = options.map((x) => `<option value="${escapeHtml(x)}"${x === current ? " selected" : ""}>${escapeHtml(x)}</option>`).join("");
+  select.innerHTML = options.map((x) => `<option value="${escapeHtml(x)}"${x === current ? " selected" : ""}>${escapeHtml(x === "All Engines" ? "すべてのエンジン" : x)}</option>`).join("");
 }
 
 function renderCondition() {
-  setHtml("conditionTable", table(["Condition", "Trade", "NearMiss / TopNG", "Research Score", "Note"], engine.results.condition.map((x) => [x.condition, x.trades, x.nearMiss, x.researchScore, x.note])));
+  setHtml("conditionTable", table(["条件", "取引", "NearMiss / TopNG", "研究スコア", "メモ"], engine.results.condition.map((x) => [x.condition, x.trades, x.nearMiss, x.researchScore, x.note])));
 }
 
 function renderHeatmaps() {
   const selected = engine.results.selectedEngine || "All Engines";
   const engineRows = selected === "All Engines" ? engine.results.heatmaps.engineRows : engine.results.heatmaps.engineRows.filter((r) => r.engine === selected);
-  setHtml("topNgHeatmap", heatmapTable(["Engine", ...engine.results.heatmaps.ngLabels], engineRows.map((r) => [r.engine, ...engine.results.heatmaps.ngLabels.map((l) => r[l] || 0)])));
-  setHtml("sessionHeatmap", heatmapTable(["Session", "Trade", "NearMiss", "WinRate", "ResearchScore"], engine.results.heatmaps.sessionRows.map((r) => [r.session, r.Trade, r.NearMiss, r.WinRate, r.ResearchScore])));
+  setHtml("topNgHeatmap", heatmapTable(["エンジン", ...engine.results.heatmaps.ngLabels], engineRows.map((r) => [r.engine, ...engine.results.heatmaps.ngLabels.map((l) => r[l] || 0)])));
+  setHtml("sessionHeatmap", heatmapTable(["セッション", "取引", "NearMiss", "勝率", "研究スコア"], engine.results.heatmaps.sessionRows.map((r) => [r.session, r.Trade, r.NearMiss, r.WinRate, r.ResearchScore])));
 }
 
 function renderNearMiss() {
   const n = engine.results.nearMiss;
-  drawPie("nearMissChart", ["1 condition left", "2 conditions left", "3+ conditions"], [n.buckets?.one || 0, n.buckets?.two || 0, n.buckets?.threePlus || 0], "NearMiss");
-  setHtml("closestEngine", n.closestEngine ? `<div class="metric"><span>Closest Engine</span><strong>${escapeHtml(n.closestEngine.engine)}</strong><p>${fmt(n.closestEngine.count)} records</p></div>` : `<div class="empty">Load NearMissHistory CSV.</div>`);
-  setHtml("nearMissComboTable", table(["NG Combo", "Count"], (n.combos || []).slice(0, 15).map((x) => [x.name, x.count])));
-  setHtml("nearMissTable", table(["NG Reason", "Count"], (n.ngReasons || []).slice(0, 15).map((x) => [x.name, x.count])));
-  setHtml("nearMissDeepTable", table(["Engine", "Session", "Total", "1 Left", "2 Left", "3+ Left", "TopNG"], (engine.results.nearMissDeep.engineSession || []).slice(0, 20).map((x) => [x.engine, x.session, x.total, x.one, x.two, x.threePlus, x.topNg.map((n) => `${n.name}:${n.count}`).join(" / ")])));
+  drawPie("nearMissChart", ["あと1条件", "あと2条件", "あと3条件以上"], [n.buckets?.one || 0, n.buckets?.two || 0, n.buckets?.threePlus || 0], "NearMiss");
+  setHtml("closestEngine", n.closestEngine ? `<div class="metric"><span>最も惜しいエンジン</span><strong>${escapeHtml(n.closestEngine.engine)}</strong><p>${fmt(n.closestEngine.count)} 件</p></div>` : `<div class="empty">NearMissHistory CSVを読み込んでください。</div>`);
+  setHtml("nearMissComboTable", table(["NG組み合わせ", "件数"], (n.combos || []).slice(0, 15).map((x) => [x.name, x.count])));
+  setHtml("nearMissTable", table(["NG理由", "件数"], (n.ngReasons || []).slice(0, 15).map((x) => [x.name, x.count])));
+  setHtml("nearMissDeepTable", table(["エンジン", "セッション", "合計", "あと1", "あと2", "あと3以上", "TopNG"], (engine.results.nearMissDeep.engineSession || []).slice(0, 20).map((x) => [x.engine, x.session, x.total, x.one, x.two, x.threePlus, x.topNg.map((n) => `${n.name}:${n.count}`).join(" / ")])));
   const singles = engine.results.nearMissDeep.singleBottlenecks || [];
   const totalSingle = singles.reduce((acc, x) => acc + x.count, 0) || 1;
-  setHtml("singleBottleneckTable", table(["Engine", "Session", "Remaining NG", "Count", "Share"], singles.slice(0, 20).map((x) => [x.engine, x.session, x.reason, x.count, pct(ratio(x.count, totalSingle))])));
+  setHtml("singleBottleneckTable", table(["エンジン", "セッション", "残りNG", "件数", "割合"], singles.slice(0, 20).map((x) => [x.engine, x.session, x.reason, x.count, pct(ratio(x.count, totalSingle))])));
 }
 
 function renderSession() {
   const s = engine.results.session;
   drawBar("sessionChart", s.map((x) => x.session), s.map((x) => x.nearMiss), "NearMiss");
-  drawBar("sessionConditionChart", s.map((x) => x.session), s.map((x) => round(x.winRate)), "WinRate %");
-  setHtml("sessionTable", table(["Session", "Trades", "NearMiss", "WinRate", "AvgPips", "TopNG", "Research"], s.map((x) => [x.session, x.trades, x.nearMiss, pct(x.winRate), round(x.averagePips), x.topNg.map((n) => n.name).join(" / "), x.researchScore])));
-  setHtml("sessionConditionMatrix", heatmapTable(["Session", "RSI", "ATR", "BB", "Volume", "Spread", "Time"], engine.results.sessionConditionMatrix.map((x) => [x.session, x.RSI, x.ATR, x.BB, x.Volume, x.Spread, x.Time])));
+  drawBar("sessionConditionChart", s.map((x) => x.session), s.map((x) => round(x.winRate)), "勝率 %");
+  setHtml("sessionTable", table(["セッション", "取引数", "NearMiss", "勝率", "平均Pips", "TopNG", "研究"], s.map((x) => [x.session, x.trades, x.nearMiss, pct(x.winRate), round(x.averagePips), x.topNg.map((n) => n.name).join(" / "), x.researchScore])));
+  setHtml("sessionConditionMatrix", heatmapTable(["セッション", "RSI", "ATR", "BB", "Volume", "Spread", "Time"], engine.results.sessionConditionMatrix.map((x) => [x.session, x.RSI, x.ATR, x.BB, x.Volume, x.Spread, x.Time])));
 }
 
 function renderSignal() {
   const s = engine.results.signal;
-  drawBar("signalChart", (s.table || []).map((x) => x.engine), (s.table || []).map((x) => x.signals), "Signals");
-  setHtml("signalSummary", metrics([["Signals", fmt(s.totalSignals || 0)], ["Engines", fmt((s.table || []).length)], ["Entry Success", pct(avgSignalSuccess(s.table || []))]]));
-  setHtml("signalTable", table(["Engine", "Signals", "Entries", "SuccessRate"], (s.table || []).map((x) => [x.engine, x.signals, x.entries, pct(x.successRate)])));
+  drawBar("signalChart", (s.table || []).map((x) => x.engine), (s.table || []).map((x) => x.signals), "シグナル");
+  setHtml("signalSummary", metrics([["シグナル", fmt(s.totalSignals || 0)], ["エンジン", fmt((s.table || []).length)], ["エントリー成功率", pct(avgSignalSuccess(s.table || []))]]));
+  setHtml("signalTable", table(["エンジン", "シグナル", "エントリー", "成功率"], (s.table || []).map((x) => [x.engine, x.signals, x.entries, pct(x.successRate)])));
 }
 
 function renderManager() {
-  setHtml("csvManagerTable", table(["CSV", "Exists", "Rows", "Columns", "Detected Type", "Method", "Schema", "Original Columns", "Normalized Columns", "Alias Applied", "Validation", "Warnings"], engine.results.csvManager.map((x) => [x.label, x.exists ? "Yes" : "No", x.rows, x.columns, x.detectedType || "-", x.detectionMethod || "-", x.schemaVersion || x.version, x.originalColumns || "-", x.normalizedColumns || "-", x.aliasesApplied || "-", x.validation, x.warnings.join(" / ") || "-"])));
-  setHtml("csvSpecTable", table(["CSV", "Purpose", "Screen"], CSV_TYPES.map((x) => [x.label, x.description, x.usage])));
+  setHtml("csvManagerTable", table(["CSV", "存在", "行数", "列数", "検出タイプ", "方式", "スキーマ", "元の列", "正規化列", "適用エイリアス", "検証", "警告"], engine.results.csvManager.map((x) => [x.label, x.exists ? "あり" : "なし", x.rows, x.columns, x.detectedType || "-", x.detectionMethod || "-", x.schemaVersion || x.version, x.originalColumns || "-", x.normalizedColumns || "-", x.aliasesApplied || "-", x.validation, x.warnings.join(" / ") || "-"])));
+  setHtml("csvSpecTable", table(["CSV", "用途", "画面"], CSV_TYPES.map((x) => [x.label, x.description, x.usage])));
 }
 
 function renderDataQuality() {
   if (!byId("qualityOverview")) return;
   const q = new DataQualityEngine(engine).snapshot();
   engine.results.dataQuality = q;
-  setHtml("qualityOverview", `<span class="pill">Research Data Quality</span><h3>${q.qualityScore}/100 ${q.qualityStars} / ${escapeHtml(q.dataQuality)}</h3><p>Confidence: <strong>${escapeHtml(q.confidence)}</strong> / Research Reliability: <strong>${q.reliability.percent}%</strong></p><p>${escapeHtml(q.reliability.reasons.join(" "))}</p>`);
+  setHtml("qualityOverview", `<span class="pill">研究データ品質</span><h3>${q.qualityScore}/100 ${q.qualityStars} / ${escapeHtml(q.dataQuality)}</h3><p>信頼度: <strong>${escapeHtml(q.confidence)}</strong> / 研究信頼性: <strong>${q.reliability.percent}%</strong></p><p>${escapeHtml(q.reliability.reasons.join(" "))}</p>`);
   setHtml("qualityMetrics", metrics([
-    ["Overall Score", `${q.qualityScore}/100`],
-    ["Confidence", q.confidence],
-    ["Data Quality", q.dataQuality],
-    ["Reliability", `${q.reliability.percent}%`],
-    ["Warnings", q.warnings.length],
-    ["Recommendations", q.recommendations.length]
+    ["総合スコア", `${q.qualityScore}/100`],
+    ["信頼度", q.confidence],
+    ["データ品質", q.dataQuality],
+    ["研究信頼性", `${q.reliability.percent}%`],
+    ["警告", q.warnings.length],
+    ["推奨", q.recommendations.length]
   ]));
-  setHtml("qualityCsvHealth", table(["CSV", "Health", "Rows", "Status"], q.health.map((x) => [x.csv, x.stars, x.rows, x.status])));
-  setHtml("qualityConfidence", table(["Dimension", "Score", "Stars", "Label"], Object.entries(q.confidenceScore).filter(([k]) => k !== "overall" && k !== "average").map(([k, v]) => [k, v.score, v.stars, v.label]).concat([["Overall", q.confidenceScore.average, q.confidence, q.confidence]])));
-  setHtml("qualityCoverage", table(["CSV", "Rows", "Coverage", "Status", "Points"], q.coverage.map((x) => [x.label, x.rows, x.coverage, x.status, `${x.earned}/${x.points}`])));
-  setHtml("qualityMissing", table(["CSV", "Missing Columns", "Missing Values", "Missing Engine", "Missing Session", "Missing Date", "Missing Time", "Missing Pips"], q.missing.map((x) => [x.csv, x.missingColumns.join(" / ") || "-", x.missingValues, x.missingEngine, x.missingSession, x.missingDate, x.missingTime, x.missingPips])));
-  setHtml("qualityDuplicates", table(["CSV", "Rows", "IDs", "Trade", "Timestamp", "Signal"], q.duplicates.map((x) => [x.csv, x.duplicateRows, x.duplicateIds, x.duplicateTrade, x.duplicateTimestamp, x.duplicateSignal])));
-  setHtml("qualitySessionBalance", table(["Session", "Count", "Share", "Status"], q.sessionBalance.map((x) => [x.name, x.count, `${round(x.share)}%`, x.status])));
-  setHtml("qualityEngineBalance", table(["Engine", "Trades", "Signals", "NearMiss", "Status"], q.engineBalance.map((x) => [x.engine, x.trades, x.signals, x.nearMiss, x.status])));
-  setHtml("qualityTimeFreshness", table(["Item", "Value"], [
-    ["Start Date", q.timeCoverage.startDate || "-"],
-    ["End Date", q.timeCoverage.endDate || "-"],
-    ["Total Days", q.timeCoverage.totalDays],
-    ["Missing Days", q.timeCoverage.missingDays],
-    ["Continuous Days", q.timeCoverage.continuousDays],
-    ["Newest CSV", q.freshness.newestCsv],
-    ["Oldest CSV", q.freshness.oldestCsv],
-    ["CSV Age Days", q.freshness.csvAgeDays ?? "-"],
-    ["Freshness", q.freshness.status]
+  setHtml("qualityCsvHealth", table(["CSV", "健全性", "行数", "状態"], q.health.map((x) => [x.csv, x.stars, x.rows, x.status])));
+  setHtml("qualityConfidence", table(["分類", "スコア", "星", "ラベル"], Object.entries(q.confidenceScore).filter(([k]) => k !== "overall" && k !== "average").map(([k, v]) => [k, v.score, v.stars, v.label]).concat([["総合", q.confidenceScore.average, q.confidence, q.confidence]])));
+  setHtml("qualityCoverage", table(["CSV", "行数", "カバー率", "状態", "点数"], q.coverage.map((x) => [x.label, x.rows, x.coverage, x.status, `${x.earned}/${x.points}`])));
+  setHtml("qualityMissing", table(["CSV", "不足列", "不足値", "Engine不足", "Session不足", "Date不足", "Time不足", "Pips不足"], q.missing.map((x) => [x.csv, x.missingColumns.join(" / ") || "-", x.missingValues, x.missingEngine, x.missingSession, x.missingDate, x.missingTime, x.missingPips])));
+  setHtml("qualityDuplicates", table(["CSV", "行数", "ID", "取引", "時刻", "シグナル"], q.duplicates.map((x) => [x.csv, x.duplicateRows, x.duplicateIds, x.duplicateTrade, x.duplicateTimestamp, x.duplicateSignal])));
+  setHtml("qualitySessionBalance", table(["セッション", "件数", "割合", "状態"], q.sessionBalance.map((x) => [x.name, x.count, `${round(x.share)}%`, x.status])));
+  setHtml("qualityEngineBalance", table(["エンジン", "取引数", "シグナル", "NearMiss", "状態"], q.engineBalance.map((x) => [x.engine, x.trades, x.signals, x.nearMiss, x.status])));
+  setHtml("qualityTimeFreshness", table(["項目", "値"], [
+    ["開始日", q.timeCoverage.startDate || "-"],
+    ["終了日", q.timeCoverage.endDate || "-"],
+    ["総日数", q.timeCoverage.totalDays],
+    ["欠損日数", q.timeCoverage.missingDays],
+    ["連続日数", q.timeCoverage.continuousDays],
+    ["最新CSV", q.freshness.newestCsv],
+    ["最古CSV", q.freshness.oldestCsv],
+    ["CSV経過日数", q.freshness.csvAgeDays ?? "-"],
+    ["鮮度", q.freshness.status]
   ]));
-  setHtml("qualityWarnings", q.warnings.length ? `<div class="warning-list">${q.warnings.map((w) => `<div>${escapeHtml(w)}</div>`).join("")}</div>` : `<div class="empty">No major data quality warnings.</div>`);
+  setHtml("qualityWarnings", q.warnings.length ? `<div class="warning-list">${q.warnings.map((w) => `<div>${escapeHtml(w)}</div>`).join("")}</div>` : `<div class="empty">大きなデータ品質警告はありません。</div>`);
   setHtml("qualityRecommendations", `<div class="warning-list">${q.recommendations.map((r) => `<div>${escapeHtml(r)}</div>`).join("")}</div>`);
 }
 
@@ -1162,38 +1162,38 @@ function renderCrossCsv() {
   if (!byId("crossOverview")) return;
   const cross = new CrossCsvEngine(engine).snapshot();
   engine.results.crossCsv = cross;
-  setHtml("crossOverview", `<span class="pill">Cross CSV Intelligence</span><h3>${cross.correlationScore}/100 / ${escapeHtml(cross.crossSummary.status)}</h3><pre>${escapeHtml(cross.insight)}</pre>`);
+  setHtml("crossOverview", `<span class="pill">CSV横断インテリジェンス</span><h3>${cross.correlationScore}/100 / ${escapeHtml(cross.crossSummary.status)}</h3><pre>${escapeHtml(cross.insight)}</pre>`);
   const perf = PerformanceUtil.analysisStatistics(engine);
   setHtml("crossPerformance", metrics([
-    ["Cross Analysis Time", `${perf.crossTime}ms`],
-    ["Correlation Count", cross.engineCorrelation.length + cross.sessionCorrelation.length],
-    ["Cache Status", perf.crossCache],
-    ["Analysis Version", perf.analysisVersion]
+    ["横断分析時間", `${perf.crossTime}ms`],
+    ["相関数", cross.engineCorrelation.length + cross.sessionCorrelation.length],
+    ["キャッシュ状態", perf.crossCache],
+    ["分析バージョン", perf.analysisVersion]
   ]));
   setHtml("crossMetrics", metrics([
-    ["Loaded CSV", `${cross.crossSummary.loadedCsvCount}/${cross.crossSummary.expectedCsvCount}`],
-    ["Coverage", `${cross.crossSummary.coverage}%`],
-    ["Correlation", `${cross.correlationScore}/100`],
-    ["Engines", cross.engineCorrelation.length],
-    ["Sessions", cross.sessionCorrelation.length],
-    ["Warnings", cross.warnings.length],
-    ["Recommendations", cross.recommendations.length],
-    ["High Opportunity", cross.opportunityMatrix.filter((x) => x.level === "High").length]
+    ["読み込みCSV", `${cross.crossSummary.loadedCsvCount}/${cross.crossSummary.expectedCsvCount}`],
+    ["カバー率", `${cross.crossSummary.coverage}%`],
+    ["相関", `${cross.correlationScore}/100`],
+    ["エンジン", cross.engineCorrelation.length],
+    ["セッション", cross.sessionCorrelation.length],
+    ["警告", cross.warnings.length],
+    ["推奨", cross.recommendations.length],
+    ["高機会", cross.opportunityMatrix.filter((x) => x.level === "High").length]
   ]));
-  setHtml("crossEngineCorrelation", table(["Engine", "Trades", "WinRate", "Signals", "Signal Success", "NearMiss", "Checks", "TimeOK", "Full", "Score", "Confidence", "Opportunity"], cross.engineCorrelation.slice(0, 20).map((x) => [x.engine, x.trades, pct(x.winRate), x.signals, `${x.signalSuccess}%`, x.nearMiss, x.checks, x.timeOk, x.full, `${x.correlationScore}/100`, x.confidence, x.opportunity])));
-  setHtml("crossSessionCorrelation", table(["Session", "Trades", "NearMiss", "Signals", "WinRate", "AvgPips", "Research", "Opportunity"], cross.sessionCorrelation.map((x) => [x.session, x.trades, x.nearMiss, x.signals, `${round(x.winRate)}%`, round(x.averagePips), x.researchScore, x.sessionOpportunity])));
+  setHtml("crossEngineCorrelation", table(["エンジン", "取引数", "勝率", "シグナル", "シグナル成功", "NearMiss", "判定", "TimeOK", "Full", "スコア", "信頼度", "機会"], cross.engineCorrelation.slice(0, 20).map((x) => [x.engine, x.trades, pct(x.winRate), x.signals, `${x.signalSuccess}%`, x.nearMiss, x.checks, x.timeOk, x.full, `${x.correlationScore}/100`, x.confidence, x.opportunity])));
+  setHtml("crossSessionCorrelation", table(["セッション", "取引数", "NearMiss", "シグナル", "勝率", "平均Pips", "研究", "機会"], cross.sessionCorrelation.map((x) => [x.session, x.trades, x.nearMiss, x.signals, `${round(x.winRate)}%`, round(x.averagePips), x.researchScore, x.sessionOpportunity])));
   const s = cross.signalCorrelation;
-  setHtml("crossSignalCorrelation", `${metrics([["Signals", s.totalSignals], ["Entries", s.totalEntries], ["Trades", s.totalTrades], ["Signal->Entry", `${s.signalToEntry}%`], ["Entry->Trade", `${s.entryToTrade}%`], ["Signal->Trade", `${s.signalToTrade}%`], ["WinRate", `${s.winRate}%`]])}${table(["Engine", "Signals", "Entries", "Trades", "Success", "WinRate"], (s.table || []).slice(0, 12).map((x) => [x.engine, x.signals, x.entries, x.trades, `${x.signalSuccess}%`, pct(x.winRate)]))}`);
-  setHtml("crossNearMissCorrelation", table(["Engine", "NearMiss", "Trades", "Signals", "Near/Trade", "Signal/Near", "Interpretation"], cross.nearMissCorrelation.slice(0, 20).map((x) => [x.engine, x.nearMiss, x.trades, x.signals, `${x.nearTradeRatio}%`, `${x.signalNearRatio}%`, x.interpretation])));
-  setHtml("crossOpportunityMatrix", table(["Level", "Type", "Target", "Score", "Trades", "NearMiss", "Signals", "Reason"], cross.opportunityMatrix.slice(0, 20).map((x) => [x.level, x.type, x.target, `${x.score}/100`, x.trades, x.nearMiss, x.signals, x.reason])));
-  setHtml("crossRecommendations", cross.recommendations.length ? cross.recommendations.map((x) => `<div class="suggestion"><div class="stars">${x.stars}</div><div><h4>${escapeHtml(x.title)}</h4><p><span class="tag">${escapeHtml(x.target)}</span></p><p>${escapeHtml(x.reason)}</p></div></div>`).join("") : `<div class="empty">No Cross CSV recommendations yet.</div>`);
-  setHtml("crossWarnings", cross.warnings.length ? `<div class="warning-list">${cross.warnings.map((x) => `<div>${escapeHtml(x)}</div>`).join("")}</div>` : `<div class="empty">No Cross CSV warnings.</div>`);
+  setHtml("crossSignalCorrelation", `${metrics([["シグナル", s.totalSignals], ["エントリー", s.totalEntries], ["取引", s.totalTrades], ["シグナル→エントリー", `${s.signalToEntry}%`], ["エントリー→取引", `${s.entryToTrade}%`], ["シグナル→取引", `${s.signalToTrade}%`], ["勝率", `${s.winRate}%`]])}${table(["エンジン", "シグナル", "エントリー", "取引", "成功率", "勝率"], (s.table || []).slice(0, 12).map((x) => [x.engine, x.signals, x.entries, x.trades, `${x.signalSuccess}%`, pct(x.winRate)]))}`);
+  setHtml("crossNearMissCorrelation", table(["エンジン", "NearMiss", "取引数", "シグナル", "Near/取引", "Signal/Near", "解釈"], cross.nearMissCorrelation.slice(0, 20).map((x) => [x.engine, x.nearMiss, x.trades, x.signals, `${x.nearTradeRatio}%`, `${x.signalNearRatio}%`, x.interpretation])));
+  setHtml("crossOpportunityMatrix", table(["レベル", "種類", "対象", "スコア", "取引数", "NearMiss", "シグナル", "理由"], cross.opportunityMatrix.slice(0, 20).map((x) => [x.level, x.type, x.target, `${x.score}/100`, x.trades, x.nearMiss, x.signals, x.reason])));
+  setHtml("crossRecommendations", cross.recommendations.length ? cross.recommendations.map((x) => `<div class="suggestion"><div class="stars">${x.stars}</div><div><h4>${escapeHtml(x.title)}</h4><p><span class="tag">${escapeHtml(x.target)}</span></p><p>${escapeHtml(x.reason)}</p></div></div>`).join("") : `<div class="empty">CSV横断の推奨はまだありません。</div>`);
+  setHtml("crossWarnings", cross.warnings.length ? `<div class="warning-list">${cross.warnings.map((x) => `<div>${escapeHtml(x)}</div>`).join("")}</div>` : `<div class="empty">CSV横断の警告はありません。</div>`);
 }
 
 function renderIntelligence() {
   const top = engine.results.intelligence[0];
-  setHtml("intelligenceHero", top ? `<span class="pill">Today's AI Recommendation</span><h3>${top.stars} ${escapeHtml(top.title)}</h3><p><strong>${escapeHtml(top.target)}</strong> - ${escapeHtml(top.reason)}</p>` : `<span class="pill">Research Intelligence</span><h3>Load CSV to generate Research candidates.</h3><p>This lab shows Research candidates, not trading-condition changes.</p>`);
-  setHtml("researchSuggestions", engine.results.intelligence.map((s, i) => `<div class="suggestion"><div class="stars">${s.stars}</div><div><h4>${escapeHtml(s.title)}</h4><p><span class="tag">${escapeHtml(s.target)}</span></p><p>${escapeHtml(s.reason)}</p><button class="mini-button add-research" data-index="${i}">Add to Research Manager</button></div></div>`).join("") || `<div class="empty">No Research candidates yet.</div>`);
+  setHtml("intelligenceHero", top ? `<span class="pill">本日の研究推奨</span><h3>${top.stars} ${escapeHtml(top.title)}</h3><p><strong>${escapeHtml(top.target)}</strong> - ${escapeHtml(top.reason)}</p>` : `<span class="pill">研究インテリジェンス</span><h3>CSVを読み込むと研究候補を生成します。</h3><p>ここに表示されるのは売買条件の変更案ではなく、研究候補です。</p>`);
+  setHtml("researchSuggestions", engine.results.intelligence.map((s, i) => `<div class="suggestion"><div class="stars">${s.stars}</div><div><h4>${escapeHtml(s.title)}</h4><p><span class="tag">${escapeHtml(s.target)}</span></p><p>${escapeHtml(s.reason)}</p><button class="mini-button add-research" data-index="${i}">研究管理へ追加</button></div></div>`).join("") || `<div class="empty">研究候補はまだありません。</div>`);
   document.querySelectorAll(".add-research").forEach((button) => {
     button.addEventListener("click", () => {
       const suggestion = engine.results.intelligence[Number(button.dataset.index)];
@@ -1218,7 +1218,7 @@ function renderIntelligence() {
 function renderTimeline() {
   const trend = new TrendEngine({ analysisEngine: engine, researchManager }).snapshot();
   engine.results.trend = trend;
-  setHtml("trendOverview", `<span class="pill">Research Timeline</span><h3>${escapeHtml(trend.forecast[0]?.status || "Need Data")} / ${trend.count} snapshots</h3><p>${escapeHtml(trend.trendSummary)}</p>`);
+  setHtml("trendOverview", `<span class="pill">研究タイムライン</span><h3>${escapeHtml(trend.forecast[0]?.status || "データ不足")} / ${trend.count}件のスナップショット</h3><p>${escapeHtml(trend.trendSummary)}</p>`);
   setHtml("trendMetrics", metrics([
     ["Snapshots", trend.count],
     ["Daily Points", trend.longTermTrend.daily.length],
@@ -1310,7 +1310,7 @@ function renderResearchManager() {
     search: valueOf("researchSearch")
   });
   const message = researchManager.lastMessage ? `<div class="empty">${escapeHtml(researchManager.lastMessage)}</div>` : "";
-  setHtml("researchList", `${message}${rows.length ? `<table><thead><tr><th>Title</th><th>Status</th><th>Priority</th><th>Score</th><th>Confidence</th><th>Progress</th><th>Health</th><th>Next Action</th><th>Open</th></tr></thead><tbody>${rows.map((item) => `<tr><td>${escapeHtml(item.title)}</td><td>${escapeHtml(item.status)}</td><td>${escapeHtml(item.priority)}</td><td>${escapeHtml(item.researchScore)}</td><td>${escapeHtml(item.confidence)}</td><td>${researchProgress(item)}%</td><td>${escapeHtml(researchHealth(item))}</td><td>${escapeHtml(nextAction(item))}</td><td><button class="mini-button open-research" data-id="${escapeHtml(item.id)}">Open</button></td></tr>`).join("")}</tbody></table>` : `<div class="empty">No research items yet. Add a candidate from Research Intelligence or create one manually.</div>`}`);
+  setHtml("researchList", `${message}${rows.length ? `<table><thead><tr><th>タイトル</th><th>状態</th><th>優先度</th><th>スコア</th><th>信頼度</th><th>進捗</th><th>健全性</th><th>次の行動</th><th>開く</th></tr></thead><tbody>${rows.map((item) => `<tr><td>${escapeHtml(item.title)}</td><td>${escapeHtml(item.status)}</td><td>${escapeHtml(item.priority)}</td><td>${escapeHtml(item.researchScore)}</td><td>${escapeHtml(item.confidence)}</td><td>${researchProgress(item)}%</td><td>${escapeHtml(researchHealth(item))}</td><td>${escapeHtml(nextAction(item))}</td><td><button class="mini-button open-research" data-id="${escapeHtml(item.id)}">開く</button></td></tr>`).join("")}</tbody></table>` : `<div class="empty">研究項目はまだありません。研究インテリジェンスから候補を追加するか、手動で作成してください。</div>`}`);
   document.querySelectorAll(".open-research").forEach((button) => button.addEventListener("click", () => {
     researchManager.selectedId = button.dataset.id;
     renderResearchDetail();
@@ -1321,47 +1321,47 @@ function renderResearchManager() {
 function renderResearchDetail() {
   const item = researchManager.get(researchManager.selectedId);
   if (!item) {
-    setHtml("researchDetail", `<div class="empty">Select a research item.</div>`);
+    setHtml("researchDetail", `<div class="empty">研究項目を選択してください。</div>`);
     return;
   }
   setHtml("researchDetail", `
-    <label>Title<input id="detailTitle" type="text" value="${escapeHtml(item.title)}"></label>
+    <label>タイトル<input id="detailTitle" type="text" value="${escapeHtml(item.title)}"></label>
     <div class="form-grid compact">
-      <label>Category<select id="detailCategory">${RESEARCH_CATEGORIES.map((x) => `<option value="${escapeHtml(x)}" ${x === item.category ? "selected" : ""}>${escapeHtml(x)}</option>`).join("")}</select></label>
-      <label>Status<select id="detailStatus">${RESEARCH_STATUSES.map((x) => `<option value="${escapeHtml(x)}" ${x === item.status ? "selected" : ""}>${escapeHtml(x)}</option>`).join("")}</select></label>
-      <label>Priority<select id="detailPriority">${RESEARCH_PRIORITIES.map((x) => `<option value="${escapeHtml(x)}" ${x === item.priority ? "selected" : ""}>${escapeHtml(x)}</option>`).join("")}</select></label>
-      <label>Decision<select id="detailDecision">${RESEARCH_DECISIONS.map((x) => `<option value="${escapeHtml(x)}" ${x === item.decision ? "selected" : ""}>${escapeHtml(x)}</option>`).join("")}</select></label>
+      <label>カテゴリ<select id="detailCategory">${RESEARCH_CATEGORIES.map((x) => `<option value="${escapeHtml(x)}" ${x === item.category ? "selected" : ""}>${escapeHtml(x)}</option>`).join("")}</select></label>
+      <label>状態<select id="detailStatus">${RESEARCH_STATUSES.map((x) => `<option value="${escapeHtml(x)}" ${x === item.status ? "selected" : ""}>${escapeHtml(x)}</option>`).join("")}</select></label>
+      <label>優先度<select id="detailPriority">${RESEARCH_PRIORITIES.map((x) => `<option value="${escapeHtml(x)}" ${x === item.priority ? "selected" : ""}>${escapeHtml(x)}</option>`).join("")}</select></label>
+      <label>判定<select id="detailDecision">${RESEARCH_DECISIONS.map((x) => `<option value="${escapeHtml(x)}" ${x === item.decision ? "selected" : ""}>${escapeHtml(x)}</option>`).join("")}</select></label>
     </div>
-    <div class="metric-grid">${metrics([["Progress", `${researchProgress(item)}%`], ["Health", researchHealth(item)], ["Score", item.researchScore], ["Confidence", item.confidence]])}</div>
+    <div class="metric-grid">${metrics([["進捗", `${researchProgress(item)}%`], ["健全性", researchHealth(item)], ["スコア", item.researchScore], ["信頼度", item.confidence]])}</div>
     <div class="form-grid compact">
-      <label>Engine<input id="detailEngine" type="text" value="${escapeHtml(item.engine)}"></label>
-      <label>Condition<input id="detailCondition" type="text" value="${escapeHtml(item.condition)}"></label>
-      <label>Session<input id="detailSession" type="text" value="${escapeHtml(item.session)}"></label>
-      <label>Tags<input id="detailTags" type="text" value="${escapeHtml((item.tags || []).join(", "))}"></label>
+      <label>エンジン<input id="detailEngine" type="text" value="${escapeHtml(item.engine)}"></label>
+      <label>条件<input id="detailCondition" type="text" value="${escapeHtml(item.condition)}"></label>
+      <label>時間帯<input id="detailSession" type="text" value="${escapeHtml(item.session)}"></label>
+      <label>タグ<input id="detailTags" type="text" value="${escapeHtml((item.tags || []).join(", "))}"></label>
     </div>
-    <h4>Hypothesis</h4><textarea id="detailHypothesis">${escapeHtml(item.hypothesis)}</textarea>
-    <h4>Reason</h4><textarea id="detailReason">${escapeHtml(item.reason)}</textarea>
-    <h4>Required Data</h4><textarea id="detailRequiredData">${escapeHtml(item.requiredData)}</textarea>
-    <h4>Validation Plan</h4><textarea id="detailValidation">${escapeHtml(item.validationPlan)}</textarea>
-    <h4>Success Criteria</h4><textarea id="detailSuccess">${escapeHtml(item.successCriteria)}</textarea>
-    <h4>Failure Criteria</h4><textarea id="detailFailure">${escapeHtml(item.failureCriteria)}</textarea>
-    <h4>Result Summary</h4><textarea id="detailResult">${escapeHtml(item.resultSummary)}</textarea>
-    <h4>Next Action Override</h4><textarea id="detailNextAction">${escapeHtml(item.nextAction)}</textarea>
-    <p><strong>Next Action:</strong> ${escapeHtml(nextAction(item))}</p>
+    <h4>仮説</h4><textarea id="detailHypothesis">${escapeHtml(item.hypothesis)}</textarea>
+    <h4>理由</h4><textarea id="detailReason">${escapeHtml(item.reason)}</textarea>
+    <h4>必要データ</h4><textarea id="detailRequiredData">${escapeHtml(item.requiredData)}</textarea>
+    <h4>検証計画</h4><textarea id="detailValidation">${escapeHtml(item.validationPlan)}</textarea>
+    <h4>成功基準</h4><textarea id="detailSuccess">${escapeHtml(item.successCriteria)}</textarea>
+    <h4>失敗基準</h4><textarea id="detailFailure">${escapeHtml(item.failureCriteria)}</textarea>
+    <h4>結果サマリー</h4><textarea id="detailResult">${escapeHtml(item.resultSummary)}</textarea>
+    <h4>次の行動の上書き</h4><textarea id="detailNextAction">${escapeHtml(item.nextAction)}</textarea>
+    <p><strong>次の行動:</strong> ${escapeHtml(nextAction(item))}</p>
     <div class="button-row">
-      <button class="mini-button" id="saveResearchDetail">Save Detail</button>
-      <button class="mini-button" id="addResearchEvidence">Add Evidence</button>
-      <button class="mini-button" id="downloadResearchMarkdown">Export Markdown</button>
+      <button class="mini-button" id="saveResearchDetail">詳細を保存</button>
+      <button class="mini-button" id="addResearchEvidence">証拠を追加</button>
+      <button class="mini-button" id="downloadResearchMarkdown">Markdownを書き出し</button>
     </div>
     <div class="button-row">
       ${RESEARCH_DECISIONS.filter((d) => d !== "Undecided").map((decision) => `<button class="mini-button decision-button" data-decision="${escapeHtml(decision)}">${escapeHtml(decision)}</button>`).join("")}
     </div>
-    <h4>Evidence</h4>
-    ${table(["Date", "Type", "Title", "Value", "Note", "Source"], (item.evidence || []).map((e) => [e.date || "-", e.type || "-", e.title || "-", e.value || "-", e.note || "-", e.source || "-"]))}
-    <h4>Decision Log</h4>
-    ${table(["Date", "Decision", "Reason", "User Note"], (item.decisionLog || []).map((d) => [new Date(d.date).toLocaleString(), d.decision, d.reason, d.userNote]))}
-    <h4>History</h4>
-    ${table(["At", "Type", "Note"], (item.history || []).slice(-12).reverse().map((h) => [new Date(h.at).toLocaleString(), h.type, h.note || "-"]))}
+    <h4>証拠</h4>
+    ${table(["日付", "種類", "タイトル", "値", "メモ", "出所"], (item.evidence || []).map((e) => [e.date || "-", e.type || "-", e.title || "-", e.value || "-", e.note || "-", e.source || "-"]))}
+    <h4>判定ログ</h4>
+    ${table(["日付", "判定", "理由", "ユーザーメモ"], (item.decisionLog || []).map((d) => [new Date(d.date).toLocaleString(), d.decision, d.reason, d.userNote]))}
+    <h4>履歴</h4>
+    ${table(["時刻", "種類", "メモ"], (item.history || []).slice(-12).reverse().map((h) => [new Date(h.at).toLocaleString(), h.type, h.note || "-"]))}
   `);
   on("saveResearchDetail", "click", () => {
     const previousDecision = item.decision;
@@ -1427,7 +1427,7 @@ function renderResearchBoard() {
   const boardStatuses = RESEARCH_STATUSES;
   setHtml("researchBoardView", boardStatuses.map((status) => {
     const items = researchManager.items.filter((item) => item.status === status);
-    return `<div class="board-column"><h4>${escapeHtml(status)} <span>${items.length}</span></h4>${items.map(researchCard).join("") || `<div class="empty">No items.</div>`}</div>`;
+    return `<div class="board-column"><h4>${escapeHtml(status)} <span>${items.length}</span></h4>${items.map(researchCard).join("") || `<div class="empty">項目はありません。</div>`}</div>`;
   }).join(""));
   document.querySelectorAll(".move-research").forEach((button) => button.addEventListener("click", () => {
     researchManager.update(button.dataset.id, { status: button.dataset.status });
@@ -1460,8 +1460,8 @@ function renderPortfolio() {
   setHtml("portfolioMetrics", metrics([["Total", p.total], ["Adopted", p.adopted], ["Rejected", p.rejected], ["On Hold", p.onHold], ["Stale", p.stale], ["Critical", p.critical], ["Avg Score", p.averageScore], ["Avg Confidence", p.averageConfidence], ["Avg Progress", `${p.averageProgress}%`], ["Warning", p.warning], ["Review Required", p.reviewRequired]]));
   setHtml("priorityMatrix", priorityMatrixHtml());
   const rec = researchManager.recommended();
-  setHtml("nextResearchRecommendation", rec ? `<div class="suggestion"><div class="stars">${escapeHtml(rec.researchScore)}</div><div><h4>${escapeHtml(rec.title)}</h4><p>${escapeHtml(nextAction(rec))}</p><p><span class="tag">${escapeHtml(rec.priority)}</span> <span class="tag">${escapeHtml(rec.confidence)}</span></p></div></div>` : `<div class="empty">No active research recommendation.</div>`);
-  setHtml("staleResearchTable", table(["Title", "Status", "Updated", "Next Action"], researchManager.stale().map((item) => [item.title, item.status, new Date(item.updatedAt).toLocaleString(), nextAction(item)])));
+  setHtml("nextResearchRecommendation", rec ? `<div class="suggestion"><div class="stars">${escapeHtml(rec.researchScore)}</div><div><h4>${escapeHtml(rec.title)}</h4><p>${escapeHtml(nextAction(rec))}</p><p><span class="tag">${escapeHtml(rec.priority)}</span> <span class="tag">${escapeHtml(rec.confidence)}</span></p></div></div>` : `<div class="empty">有効な研究推奨はまだありません。</div>`);
+  setHtml("staleResearchTable", table(["タイトル", "状態", "更新日", "次の行動"], researchManager.stale().map((item) => [item.title, item.status, new Date(item.updatedAt).toLocaleString(), nextAction(item)])));
 }
 
 function renderBrain() {
@@ -1483,21 +1483,21 @@ function renderBrain() {
   if (lineage) engine.results.hypothesisLineage = lineage;
   const strategy = engine.results.researchStrategy || (typeof ResearchStrategyEngine !== "undefined" ? new ResearchStrategyEngine({ analysisEngine: engine, researchManager }).snapshot() : null);
   if (strategy) engine.results.researchStrategy = strategy;
-  setHtml("brainOverview", `<span class="pill">AI Research Brain</span><h3>Next Research is selected from workflow quality, evidence, confidence, progress, risk, Cross CSV relation, trend, Engine DNA, Knowledge Graph, Workspace, Hypothesis, Lineage, and Strategy.</h3><p>${escapeHtml(data.insights[0] || "Load CSV and create Research items to activate Brain.")}</p><p><strong>Today's Cross Insight:</strong> ${escapeHtml(cross.recommendations?.[0]?.reason || cross.crossSummary?.status || "Cross CSV data is not loaded yet.")}</p><p><strong>Trend Summary:</strong> ${escapeHtml(trend.trendSummary)}</p><p><strong>Engine DNA Summary:</strong> ${escapeHtml(dna?.summary || "Engine DNA data is not ready yet.")}</p><p><strong>Knowledge Graph Insight:</strong> ${escapeHtml(kg?.insight?.[0] || "Knowledge Graph data is not ready yet.")}</p><p><strong>Hypothesis Summary:</strong> ${escapeHtml(hypothesis?.hypothesisSummary?.topTitle || "Hypothesis data is not ready yet.")}</p><p><strong>Lineage Summary:</strong> ${escapeHtml(lineage?.hypothesisLineageSummary?.largestFamily || "Hypothesis Lineage data is not ready yet.")}</p><p><strong>Strategy Summary:</strong> ${escapeHtml(strategy?.strategySummary?.summary || "Research Strategy data is not ready yet.")}</p>`);
+  setHtml("brainOverview", `<span class="pill">AI研究ブレイン</span><h3>次に見る研究は、ワークフロー品質・証拠・信頼度・進捗・リスク・CSV横断関係・トレンド・Engine DNA・ナレッジグラフ・ワークスペース・仮説・系譜・戦略から選定されます。</h3><p>${escapeHtml(data.insights[0] || "CSVを読み込み、研究項目を作成するとBrainが有効になります。")}</p><p><strong>本日のCSV横断インサイト:</strong> ${escapeHtml(cross.recommendations?.[0]?.reason || cross.crossSummary?.status || "CSV横断データはまだ読み込まれていません。")}</p><p><strong>トレンド概要:</strong> ${escapeHtml(trend.trendSummary)}</p><p><strong>Engine DNA概要:</strong> ${escapeHtml(dna?.summary || "Engine DNAデータはまだ準備できていません。")}</p><p><strong>ナレッジグラフ洞察:</strong> ${escapeHtml(kg?.insight?.[0] || "ナレッジグラフデータはまだ準備できていません。")}</p><p><strong>仮説概要:</strong> ${escapeHtml(hypothesis?.hypothesisSummary?.topTitle || "仮説データはまだ準備できていません。")}</p><p><strong>系譜概要:</strong> ${escapeHtml(lineage?.hypothesisLineageSummary?.largestFamily || "仮説系譜データはまだ準備できていません。")}</p><p><strong>戦略概要:</strong> ${escapeHtml(strategy?.strategySummary?.summary || "研究戦略データはまだ準備できていません。")}</p>`);
   setHtml("brainOverviewMetrics", metrics([
-    ["In Progress", data.overview.inProgress],
-    ["Protected", data.overview.protected],
-    ["Adopted", data.overview.adopted],
-    ["Rejected", data.overview.rejected],
-    ["Stale", data.overview.stale],
-    ["Critical", data.overview.critical],
-    ["Total", data.overview.total],
-    ["Data Quality", `${quality.qualityScore}/100`],
-    ["CSV Confidence", quality.confidence],
-    ["Cross Score", `${cross.correlationScore || 0}/100`],
-    ["Cross Status", cross.crossSummary?.status || "No Data"],
-    ["Trend Snapshots", trend.count],
-    ["Trend Status", trend.forecast[0]?.status || "Need Data"],
+    ["進行中", data.overview.inProgress],
+    ["保護中", data.overview.protected],
+    ["採用", data.overview.adopted],
+    ["却下", data.overview.rejected],
+    ["停滞", data.overview.stale],
+    ["重要", data.overview.critical],
+    ["合計", data.overview.total],
+    ["データ品質", `${quality.qualityScore}/100`],
+    ["CSV信頼度", quality.confidence],
+    ["横断スコア", `${cross.correlationScore || 0}/100`],
+    ["横断状態", cross.crossSummary?.status || "データなし"],
+    ["トレンド履歴", trend.count],
+    ["トレンド状態", trend.forecast[0]?.status || "データ不足"],
     ["Top DNA", dna?.topEngine?.engine || "-"],
     ["DNA Cluster", dna?.topEngine?.cluster || "-"],
     ["Graph Nodes", kg?.graphStatistics?.nodeCount || 0],
@@ -1518,11 +1518,11 @@ function renderBrain() {
     ["Data Quality Cache", perf.qualityCache],
     ["Memory", perf.memory]
   ]));
-  setHtml("brainRecommendations", data.recommendations.length ? data.recommendations.map((rec, index) => `<div class="suggestion"><div class="stars">${index + 1}</div><div><h4>${escapeHtml(rec.item.title)}</h4><p><span class="tag">${escapeHtml(rec.item.engine || rec.item.category)}</span> <span class="tag">${escapeHtml(rec.item.priority)}</span> <span class="tag">${escapeHtml(rec.item.researchScore)}</span></p><p>${escapeHtml(rec.reasons.join(" / "))}</p><p>Brain Score: ${rec.score}</p></div></div>`).join("") : `<div class="empty">No active Research recommendations.</div>`);
-  setHtml("brainBottlenecks", table(["Bottleneck", "Count"], data.bottlenecks.map((x) => [x.name, x.count])));
-  setHtml("brainRequiredData", table(["Required Data", "Research Count", "Missing", "Collection Rate"], data.requiredData.map((x) => [x.csv, x.count, x.missing, `${x.collectionRate}%`])));
-  setHtml("brainPriorityRanking", table(["Rank", "Title", "Status", "Priority", "Quality", "Progress", "Health", "Advisor"], data.priorityRanking.slice(0, 20).map((x, i) => [i + 1, x.item.title, x.item.status, x.item.priority, x.qualityScore, `${researchProgress(x.item)}%`, researchHealth(x.item), x.advisor])));
-  setHtml("brainRoadmap", table(["Status", "Count"], data.roadmap.map((x) => [x.status, x.count])));
+  setHtml("brainRecommendations", data.recommendations.length ? data.recommendations.map((rec, index) => `<div class="suggestion"><div class="stars">${index + 1}</div><div><h4>${escapeHtml(rec.item.title)}</h4><p><span class="tag">${escapeHtml(rec.item.engine || rec.item.category)}</span> <span class="tag">${escapeHtml(rec.item.priority)}</span> <span class="tag">${escapeHtml(rec.item.researchScore)}</span></p><p>${escapeHtml(rec.reasons.join(" / "))}</p><p>Brainスコア: ${rec.score}</p></div></div>`).join("") : `<div class="empty">有効な研究推奨はまだありません。</div>`);
+  setHtml("brainBottlenecks", table(["ボトルネック", "件数"], data.bottlenecks.map((x) => [x.name, x.count])));
+  setHtml("brainRequiredData", table(["必要データ", "研究数", "不足", "収集率"], data.requiredData.map((x) => [x.csv, x.count, x.missing, `${x.collectionRate}%`])));
+  setHtml("brainPriorityRanking", table(["順位", "タイトル", "状態", "優先度", "品質", "進捗", "健全性", "助言"], data.priorityRanking.slice(0, 20).map((x, i) => [i + 1, x.item.title, x.item.status, x.item.priority, x.qualityScore, `${researchProgress(x.item)}%`, researchHealth(x.item), x.advisor])));
+  setHtml("brainRoadmap", table(["状態", "件数"], data.roadmap.map((x) => [x.status, x.count])));
   drawMultiLine("brainTimelineChart", data.timeline.map((x) => x.date), [
     { label: "Research", data: data.timeline.map((x) => x.research) },
     { label: "Evidence", data: data.timeline.map((x) => x.evidence) },
@@ -1800,8 +1800,8 @@ function researchItem(label, value, note) {
 
 function progressHtml(detail = false) {
   const p = engine.results.progress || { percent: 0, checks: [] };
-  const rows = p.checks.map(([name, ok]) => [name, ok ? "Complete" : "Need Data"]);
-  return `<h3>Research Progress ${p.percent || 0}%</h3><div class="progress"><div style="width:${p.percent || 0}%"></div></div>${detail ? table(["Item", "Status"], rows) : ""}`;
+  const rows = p.checks.map(([name, ok]) => [name, ok ? "完了" : "データ不足"]);
+  return `<h3>研究進捗 ${p.percent || 0}%</h3><div class="progress"><div style="width:${p.percent || 0}%"></div></div>${detail ? table(["項目", "状態"], rows) : ""}`;
 }
 
 function metrics(items) {
@@ -1809,18 +1809,18 @@ function metrics(items) {
 }
 
 function table(headers, rows) {
-  if (!rows.length) return `<div class="empty">No data.</div>`;
+  if (!rows.length) return `<div class="empty">データがありません。</div>`;
   const key = virtualTableKey(headers, rows.length);
   const useVirtual = rows.length > 1000;
   const limit = useVirtual ? Math.min(rows.length, virtualTableState[key] || 100) : rows.length;
   const visibleRows = rows.slice(0, limit);
   const body = `<table><thead><tr>${headers.map((h) => `<th>${escapeHtml(h)}</th>`).join("")}</tr></thead><tbody>${visibleRows.map((row) => `<tr>${row.map((v) => `<td>${escapeHtml(v)}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
   if (!useVirtual || limit >= rows.length) return body;
-  return `${body}<div class="table-more"><span>Showing ${limit} / ${rows.length}</span><button class="mini-button load-more-table" data-table-key="${escapeHtml(key)}" data-next-limit="${Math.min(rows.length, limit + 100)}">Load More</button></div>`;
+  return `${body}<div class="table-more"><span>${limit} / ${rows.length}件を表示中</span><button class="mini-button load-more-table" data-table-key="${escapeHtml(key)}" data-next-limit="${Math.min(rows.length, limit + 100)}">さらに表示</button></div>`;
 }
 
 function rawTable(headers, rows) {
-  if (!rows.length) return `<div class="empty">No data.</div>`;
+  if (!rows.length) return `<div class="empty">データがありません。</div>`;
   return `<table><thead><tr>${headers.map((h) => `<th>${escapeHtml(h)}</th>`).join("")}</tr></thead><tbody>${rows.map((row) => `<tr>${row.map((v, i) => `<td>${i === 0 ? escapeHtml(v) : v}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
 }
 
@@ -1829,7 +1829,7 @@ function virtualTableKey(headers, length) {
 }
 
 function heatmapTable(headers, rows) {
-  if (!rows.length) return `<div class="empty">No heatmap data.</div>`;
+  if (!rows.length) return `<div class="empty">ヒートマップデータがありません。</div>`;
   const maxValue = Math.max(1, ...rows.flat().slice(1).map((v) => Number(v) || 0));
   return `<table class="heatmap"><thead><tr>${headers.map((h) => `<th>${escapeHtml(h)}</th>`).join("")}</tr></thead><tbody>${rows.map((row) => `<tr>${row.map((v, i) => {
     const intensity = i === 0 ? 0 : Math.min(0.82, (Number(v) || 0) / maxValue);
@@ -1841,13 +1841,13 @@ function topNgTable() {
   const rows = [];
   engine.results.engineActivity.forEach((e) => e.topNg.forEach((ng) => rows.push([e.engine, ng.name, ng.count])));
   rows.sort((a, b) => b[2] - a[2]);
-  return table(["Engine", "TopNG", "Count"], rows.slice(0, 20));
+  return table(["エンジン", "TopNG", "件数"], rows.slice(0, 20));
 }
 
 function timeWeekSummary() {
   const bySession = groupSimple(engine.results.trades, "session");
   const weekdays = groupTradeByWeekday(engine.results.trades);
-  return `<h4>Session</h4>${table(["Session", "Trades", "WinRate", "AvgPips"], Object.entries(bySession).map(([k, list]) => [k, list.length, pct(ratio(list.filter((x) => x.pips > 0).length, list.length)), round(avg(list, "pips"))]))}<h4>Weekday</h4>${table(["Weekday", "Trades", "WinRate"], weekdays.map((x) => [x.name, x.trades, pct(x.winRate)]))}`;
+  return `<h4>セッション</h4>${table(["セッション", "取引数", "勝率", "平均Pips"], Object.entries(bySession).map(([k, list]) => [k, list.length, pct(ratio(list.filter((x) => x.pips > 0).length, list.length)), round(avg(list, "pips"))]))}<h4>曜日</h4>${table(["曜日", "取引数", "勝率"], weekdays.map((x) => [x.name, x.trades, pct(x.winRate)]))}`;
 }
 
 function groupTradeByWeekday(trades) {
@@ -1862,12 +1862,12 @@ function cumulativeSeries(trades) { let total = 0; return trades.map((t, i) => (
 function avgSignalSuccess(rows) { return rows.length ? rows.reduce((acc, x) => acc + x.successRate, 0) / rows.length : 0; }
 
 function engineEvolution(history) {
-  if (history.length < 2) return `<div class="empty">Run Analyzer at least twice to show evolution.</div>`;
+  if (history.length < 2) return `<div class="empty">推移を表示するにはAnalyzerを2回以上実行してください。</div>`;
   const prev = history[history.length - 2], cur = history[history.length - 1];
-  return table(["Metric", "Previous", "Current", "Diff", "Trend"], [
-    ["Trade", prev.trades, cur.trades, signed(cur.trades - prev.trades), trend(cur.trades - prev.trades)],
-    ["NearMiss", prev.nearMiss, cur.nearMiss, signed(cur.nearMiss - prev.nearMiss), "Use normalized rates"],
-    ["WinRate", `${round(prev.winRate)}%`, `${round(cur.winRate)}%`, `${signed(round(cur.winRate - prev.winRate))}%`, trend(cur.winRate - prev.winRate)],
+  return table(["指標", "前回", "今回", "差分", "傾向"], [
+    ["取引数", prev.trades, cur.trades, signed(cur.trades - prev.trades), trend(cur.trades - prev.trades)],
+    ["NearMiss", prev.nearMiss, cur.nearMiss, signed(cur.nearMiss - prev.nearMiss), "正規化率を確認"],
+    ["勝率", `${round(prev.winRate)}%`, `${round(cur.winRate)}%`, `${signed(round(cur.winRate - prev.winRate))}%`, trend(cur.winRate - prev.winRate)],
     ["ProfitFactor", round(prev.profitFactor), round(cur.profitFactor), signed(round(cur.profitFactor - prev.profitFactor)), trend(cur.profitFactor - prev.profitFactor)]
   ]);
 }
@@ -1876,7 +1876,7 @@ function drawLine(id, points, label) { makeChart(id, { type: "line", data: { lab
 function drawMultiLine(id, labels, series) { const colors = ["#49a9ff", "#48d597", "#f0a33a", "#a78bfa"]; makeChart(id, { type: "line", data: { labels, datasets: series.map((s, i) => ({ label: s.label, data: s.data, borderColor: colors[i % colors.length], backgroundColor: "transparent", tension: .25 })) } }); }
 function drawBar(id, labels, data, label) { makeChart(id, { type: "bar", data: { labels, datasets: [{ label, data, backgroundColor: "rgba(73,169,255,.55)", borderColor: "#49a9ff", borderWidth: 1 }] } }); }
 function drawPie(id, labels, data, label) { makeChart(id, { type: "doughnut", data: { labels, datasets: [{ label, data, backgroundColor: ["#48d597", "#f0a33a", "#ff6b77"] }] } }); }
-function drawRadar(id, e) { const data = e ? [Math.min(e.trade?.trades || 0, 100), Math.min(e.trade?.winRate || 0, 100), Math.min(e.timeOk, 100), Math.min(e.entryRate, 100), e.score * 20, e.topNg.length ? 70 : 20] : [0, 0, 0, 0, 0, 0]; makeChart(id, { type: "radar", data: { labels: ["Trade", "WinRate", "TimeOK", "EntryRate", "Health", "ResearchScore"], datasets: [{ label: e?.engine || "Engine", data, borderColor: "#39d8ff", backgroundColor: "rgba(57,216,255,.18)" }] } }); }
+function drawRadar(id, e) { const data = e ? [Math.min(e.trade?.trades || 0, 100), Math.min(e.trade?.winRate || 0, 100), Math.min(e.timeOk, 100), Math.min(e.entryRate, 100), e.score * 20, e.topNg.length ? 70 : 20] : [0, 0, 0, 0, 0, 0]; makeChart(id, { type: "radar", data: { labels: ["取引", "勝率", "TimeOK", "エントリー率", "健全性", "研究スコア"], datasets: [{ label: e?.engine || "エンジン", data, borderColor: "#39d8ff", backgroundColor: "rgba(57,216,255,.18)" }] } }); }
 
 function makeChart(id, config) {
   const canvas = byId(id);
@@ -1893,7 +1893,7 @@ function fmt(value) { return Number(value || 0).toLocaleString(); }
 function pct(value) { return `${round(value)}%`; }
 function pf(value) { return value >= 999 ? "Infinity" : String(round(value)); }
 function signed(value) { return value > 0 ? `+${value}` : String(value); }
-function trend(value) { return value > 0 ? "Improving" : value < 0 ? "Worsening" : "Stable"; }
+function trend(value) { return value > 0 ? "改善" : value < 0 ? "悪化" : "横ばい"; }
 function healthClass(value) { return value === "Needs Research" ? "Needs" : value || "Inactive"; }
 function escapeHtml(value) { return String(value ?? "").replace(/[&<>"']/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" }[m])); }
 function safeFileName(value) { return String(value || "Research").replace(/[\\/:*?"<>|]+/g, "_").slice(0, 80) || "Research"; }
