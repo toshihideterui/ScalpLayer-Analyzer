@@ -247,7 +247,9 @@ function renderDashboard() {
   if (workspace) engine.results.workspace = workspace;
   const strategy = engine.results.researchStrategy || (typeof ResearchStrategyEngine !== "undefined" ? new ResearchStrategyEngine({ analysisEngine: engine, researchManager }).snapshot() : null);
   if (strategy) engine.results.researchStrategy = strategy;
+  const currentSymbol = engine.getCurrentSymbol?.() || "USDJPY";
   setHtml("labDashboard", [
+    researchItem("現在の通貨ペア", currentSymbol, "Multi Symbol Foundation"),
     researchItem("最良エンジン", bestEngine, "現在の取引成績が最も高いエンジン"),
     researchItem("最も活発なエンジン", mostActive, "稼働状況から見た研究スコアが最も高いエンジン"),
     researchItem("現在の研究対象", target, engine.results.intelligence[0]?.target || "CSVを読み込んでください")
@@ -1119,7 +1121,7 @@ function renderSignal() {
 }
 
 function renderManager() {
-  setHtml("csvManagerTable", table(["CSV", "存在", "行数", "列数", "検出タイプ", "方式", "スキーマ", "元の列", "正規化列", "適用エイリアス", "検証", "警告"], engine.results.csvManager.map((x) => [x.label, x.exists ? "あり" : "なし", x.rows, x.columns, x.detectedType || "-", x.detectionMethod || "-", x.schemaVersion || x.version, x.originalColumns || "-", x.normalizedColumns || "-", x.aliasesApplied || "-", x.validation, x.warnings.join(" / ") || "-"])));
+  setHtml("csvManagerTable", table(["CSV", "存在", "通貨ペア", "行数", "列数", "検出タイプ", "方式", "スキーマ", "元の列", "正規化列", "適用エイリアス", "検証", "警告"], engine.results.csvManager.map((x) => [x.label, x.exists ? "あり" : "なし", x.symbols || "USDJPY", x.rows, x.columns, x.detectedType || "-", x.detectionMethod || "-", x.schemaVersion || x.version, x.originalColumns || "-", x.normalizedColumns || "-", x.aliasesApplied || "-", x.validation, x.warnings.join(" / ") || "-"])));
   setHtml("csvSpecTable", table(["CSV", "用途", "画面"], CSV_TYPES.map((x) => [x.label, x.description, x.usage])));
 }
 
@@ -1629,6 +1631,8 @@ function analyzerSnapshot() {
   const strategy = engine.results.researchStrategy || (typeof ResearchStrategyEngine !== "undefined" ? new ResearchStrategyEngine({ analysisEngine: engine, researchManager }).snapshot() : null);
   return {
     datetime: new Date().toISOString(),
+    currentSymbol: engine.getCurrentSymbol?.() || "USDJPY",
+    availableSymbols: engine.getAvailableSymbols?.() || ["USDJPY"],
     files: Array.from(engine.files.keys()),
     dataset: engine.results.datasetSummary || null,
     analysisVersion: engine.analysisVersion,
@@ -2151,6 +2155,12 @@ function productivityMarkdown() {
   const previous = history.length >= 2 ? snapshotDiff(history.at(-2), history.at(-1)) : null;
   return [
     "## Research Productivity v6.1",
+    "",
+    "## Multi Symbol Foundation v6.2",
+    "",
+    `- Current Symbol: ${engine.getCurrentSymbol?.() || "USDJPY"}`,
+    `- Available Symbols: ${(engine.getAvailableSymbols?.() || ["USDJPY"]).join(", ")}`,
+    "- Legacy CSV without Symbol or CurrencyPair is treated as USDJPY.",
     "",
     "### Favorite Engine",
     `- Engine: ${favorite || "-"}`,

@@ -1,5 +1,38 @@
 # CHANGELOG
 
+## v6.2 Multi Symbol Foundation Edition
+
+### Added
+
+- Optional `Symbol` column support
+- Optional `CurrencyPair` column support
+- Legacy CSV fallback to `symbol = "USDJPY"`
+- `currentSymbol` in Analyzer Snapshot
+- `availableSymbols` in Analyzer Snapshot
+- Current Symbol display on Dashboard
+- Currency pair column in CSV Manager
+- Internal multi-symbol helper functions:
+  - `getCurrentSymbol()`
+  - `getAvailableSymbols()`
+  - `filterBySymbol(symbol)`
+  - `groupBySymbol()`
+
+### Compatibility
+
+- CSV schema version was not changed
+- Existing USDJPY CSV files remain compatible
+- Existing analysis behavior remains USDJPY-first
+- No symbol switching UI was added yet
+
+### Not Changed
+
+- No EA changes
+- No CSV rewriting
+- No trading-condition changes
+- No analysis logic changes
+- No auto optimization
+- No AI API calls
+
 ## v6.1 Research Productivity Edition
 
 ### Added

@@ -6,6 +6,8 @@ class AnalysisEngine {
     this.analysisVersion = 0;
     this._snapshotCache = {};
     this.performance = {};
+    this.currentSymbol = "USDJPY";
+    this.availableSymbols = ["USDJPY"];
   }
 
   emptyResults() {
@@ -39,7 +41,9 @@ class AnalysisEngine {
       hypothesis: null,
       hypothesisLineage: null,
       researchStrategy: null,
-      performance: {}
+      performance: {},
+      currentSymbol: "USDJPY",
+      availableSymbols: ["USDJPY"]
     };
   }
 
@@ -93,6 +97,8 @@ class AnalysisEngine {
       sessionResearch: this.getRows("sessionResearch"),
       signalLog: this.getRows("signalLog")
     };
+    this.availableSymbols = collectAvailableSymbols(this.datasets);
+    this.currentSymbol = this.availableSymbols.includes("USDJPY") ? "USDJPY" : this.availableSymbols[0] || "USDJPY";
 
     this.results.trades = normalizeTrades(this.datasets.tradeHistory);
     this.results.dashboard = analyzeDashboard(this.results.trades);
@@ -118,6 +124,8 @@ class AnalysisEngine {
     this.results.comparison = compareWithPrevious(this.results);
     this.results.timeline = loadResearchHistory();
     this.results.csvManager = buildCsvManager(Array.from(this.files.values()));
+    this.results.currentSymbol = this.currentSymbol;
+    this.results.availableSymbols = this.getAvailableSymbols();
     if (typeof CrossCsvEngine !== "undefined") {
       this.results.crossCsv = new CrossCsvEngine(this).snapshot();
     }
@@ -139,6 +147,9 @@ class AnalysisEngine {
     if (typeof ResearchStrategyEngine !== "undefined") {
       this.results.researchStrategy = new ResearchStrategyEngine({ analysisEngine: this, researchManager: typeof researchManager !== "undefined" ? researchManager : null }).snapshot();
     }
+    attachSymbolMetadata(this.results, this.currentSymbol);
+    this.results.currentSymbol = this.currentSymbol;
+    this.results.availableSymbols = this.getAvailableSymbols();
     this.performance = typeof PerformanceUtil !== "undefined" ? PerformanceUtil.analysisStatistics(this) : {};
     this.results.performance = this.performance;
     if (typeof PerformanceUtil !== "undefined") {
@@ -156,6 +167,31 @@ class AnalysisEngine {
     return this.files.get(key)?.rows || [];
   }
 
+  getCurrentSymbol() {
+    return this.currentSymbol || "USDJPY";
+  }
+
+  getAvailableSymbols() {
+    const symbols = this.availableSymbols?.length ? this.availableSymbols : ["USDJPY"];
+    return [...symbols];
+  }
+
+  filterBySymbol(symbol = this.getCurrentSymbol(), rows = null) {
+    const target = normalizeSymbolValue(symbol);
+    if (Array.isArray(rows)) {
+      return rows.filter((row) => normalizeSymbolFromRow(row) === target);
+    }
+    return Object.fromEntries(Object.entries(this.datasets || {}).map(([key, value]) => [
+      key,
+      Array.isArray(value) ? value.filter((row) => normalizeSymbolFromRow(row) === target) : value
+    ]));
+  }
+
+  groupBySymbol(rows = null) {
+    const source = Array.isArray(rows) ? rows : Object.values(this.datasets || {}).flat().filter(Boolean);
+    return groupBy(source, (row) => normalizeSymbolFromRow(row));
+  }
+
   getPrompt() {
     const top = this.results.intelligence.slice(0, 8);
     const cross = this.results.crossCsv;
@@ -163,7 +199,7 @@ class AnalysisEngine {
     const workspace = this.results.workspace;
     const hypothesis = this.results.hypothesis;
     const lines = [
-      "Analyze this ScalpLayer Research Lab v6.1 result.",
+      "Analyze this ScalpLayer Research Lab v6.2 result.",
       "",
       "Goal:",
       "Find Research candidates from real CSV data. Do not suggest immediate trading-condition changes.",
@@ -213,6 +249,9 @@ class AnalysisEngine {
       "SnapshotCompare=true",
       "FastSearch=true",
       "ExportAll=Markdown/JSON/CSV",
+      "MultiSymbolFoundation=true",
+      `CurrentSymbol=${this.getCurrentSymbol()}`,
+      `AvailableSymbols=${this.getAvailableSymbols().join(",")}`,
       "",
       "Top Research Candidates:"
     ];
@@ -244,6 +283,7 @@ class AIAnalysisEngine {
 const CSV_SCHEMA_VERSION = "4.0.1";
 
 const CSV_COLUMN_ALIASES = {
+  Symbol: ["Symbol", "symbol", "CurrencyPair", "currencyPair", "currency_pair", "Pair", "pair"],
   DateTime: ["DateTime", "datetime", "server_time", "jst_time", "timestamp", "time", "Time"],
   Date: ["Date", "date"],
   Time: ["Time", "time"],
@@ -406,6 +446,8 @@ function normalizeCsvRow(row, csvType) {
     const value = resolveAlias(row, canonical);
     if (value !== undefined) normalized[canonical] = normalizeCsvValue(canonical, value);
   });
+  normalized.Symbol = normalizeSymbolFromRow(normalized);
+  normalized.symbol = normalized.Symbol;
   if (csvType?.key === "signalLog") {
     normalizeSignalLogRow(normalized);
   }
@@ -463,6 +505,34 @@ function normalizeBoolean(value) {
   return value;
 }
 
+function normalizeSymbolValue(value) {
+  const symbol = clean(value).toUpperCase();
+  return symbol || "USDJPY";
+}
+
+function normalizeSymbolFromRow(row) {
+  return normalizeSymbolValue(pick(row, ["Symbol", "symbol", "CurrencyPair", "currencyPair", "currency_pair", "Pair", "pair"]));
+}
+
+function collectAvailableSymbols(datasets = {}) {
+  const symbols = new Set();
+  Object.values(datasets).flat().forEach((row) => symbols.add(normalizeSymbolFromRow(row)));
+  return Array.from(symbols).filter(Boolean).sort((a, b) => a.localeCompare(b));
+}
+
+function attachSymbolMetadata(value, symbol, seen = new WeakSet()) {
+  if (!value || typeof value !== "object" || value instanceof Date) return value;
+  if (seen.has(value)) return value;
+  seen.add(value);
+  if (Array.isArray(value)) {
+    value.forEach((item) => attachSymbolMetadata(item, symbol, seen));
+    return value;
+  }
+  if (value.symbol === undefined) value.symbol = symbol || "USDJPY";
+  Object.values(value).forEach((item) => attachSymbolMetadata(item, symbol, seen));
+  return value;
+}
+
 function normalizeTrades(rows) {
   return rows.map((row, index) => {
     const pips = num(pick(row, ["Pips", "pips", "ProfitPips"]));
@@ -474,6 +544,7 @@ function normalizeTrades(rows) {
     const datetime = parseDateTime(date, time);
     return {
       id: index + 1,
+      symbol: normalizeSymbolFromRow(row),
       date,
       time,
       datetime,
@@ -544,8 +615,11 @@ function groupTradePerformance(trades, key) {
 
 function analyzeEngineActivity(rows, tradeByEngine) {
   const latest = new Map();
-  rows.forEach((row) => latest.set(clean(pick(row, ["Engine"])) || "Unknown", row));
-  return Array.from(latest.entries()).map(([engine, row]) => {
+  rows.forEach((row) => {
+    const engine = clean(pick(row, ["Engine"])) || "Unknown";
+    latest.set(`${normalizeSymbolFromRow(row)}||${engine}`, { engine, row });
+  });
+  return Array.from(latest.values()).map(({ engine, row }) => {
     const checks = num(pick(row, ["CheckCount", "Checks"]));
     const timeOk = num(pick(row, ["TimeOKCount", "TimeOK"]));
     const full = num(pick(row, ["FullSignalTrueCount", "FullSignal"]));
@@ -557,6 +631,7 @@ function analyzeEngineActivity(rows, tradeByEngine) {
     const breakdown = researchScoreBreakdown({ trade, checks, timeOk, full, entries, entryRate, topNg });
     const confidence = calcConfidence({ trade, checks, timeOk, full, entries, topNg });
     return {
+      symbol: normalizeSymbolFromRow(row),
       engine,
       enabled: clean(pick(row, ["Enabled"])) || "true",
       timeWindowEnter: num(pick(row, ["TimeWindowEnterCount"])),
@@ -904,6 +979,9 @@ function saveResearchSnapshot(results, files = []) {
   const snapshot = {
     fingerprint,
     datetime: new Date().toISOString(),
+    currentSymbol: results.currentSymbol || "USDJPY",
+    availableSymbols: results.availableSymbols?.length ? results.availableSymbols : ["USDJPY"],
+    symbol: results.currentSymbol || "USDJPY",
     analysisVersion: results.performance?.analysisVersion || 0,
     performance: results.performance || {},
     datasetStart: results.dataset.datasetStart,
@@ -1132,6 +1210,7 @@ function dedupeSuggestions(items) {
 }
 
 function buildCsvManager(files) {
+  const symbolsForFile = (file) => file?.rows?.length ? Array.from(new Set(file.rows.map((row) => normalizeSymbolFromRow(row)))).sort((a, b) => a.localeCompare(b)).join(" / ") : "USDJPY";
   const known = CSV_TYPES.map((type) => {
     const file = files.find((f) => f.type.key === type.key);
     return {
@@ -1144,6 +1223,7 @@ function buildCsvManager(files) {
       schemaVersion: file?.schemaVersion || CSV_SCHEMA_VERSION,
       description: type.description,
       usage: type.usage,
+      symbols: symbolsForFile(file),
       detectedType: file?.type.label || type.label,
       detectionMethod: file?.detectionMethod || "Not loaded",
       originalColumns: file?.originalHeaders?.join(" / ") || "-",
@@ -1164,6 +1244,7 @@ function buildCsvManager(files) {
     schemaVersion: CSV_SCHEMA_VERSION,
     description: "Unknown CSV",
     usage: "Skipped",
+    symbols: symbolsForFile(file),
     detectedType: file.type.label,
     detectionMethod: file.detectionMethod || "Unknown",
     originalColumns: file.originalHeaders?.join(" / ") || "-",

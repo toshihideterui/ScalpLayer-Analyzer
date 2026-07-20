@@ -1,6 +1,6 @@
-# ScalpLayer Research Lab v6.1
+# ScalpLayer Research Lab v6.2
 
-Research Productivity Edition
+Multi Symbol Foundation Edition
 
 ScalpLayer Research Lab is a research-only dashboard for CSV files exported by ScalpLayer Integrated EA.
 It does not edit the EA, rewrite CSV files, change trading conditions, run auto optimization, call AI APIs, or guarantee profit.
@@ -8,6 +8,41 @@ It does not edit the EA, rewrite CSV files, change trading conditions, run auto 
 The purpose is to help continue the ScalpLayer Project research cycle:
 
 Build -> Research -> Debug -> Validate -> Improve -> Optimize -> Repeat
+
+---
+
+## What v6.2 Adds
+
+v6.2 adds the internal foundation for future multi-symbol research.
+The current production workflow remains USDJPY-only, and existing USDJPY CSV files continue to work without any change.
+
+Added:
+
+- Optional `Symbol` column support
+- Optional `CurrencyPair` column support
+- Automatic `symbol = "USDJPY"` fallback for legacy CSV files
+- `currentSymbol` in Analyzer Snapshot
+- `availableSymbols` in Analyzer Snapshot
+- Current Symbol display on the Dashboard
+- Currency pair display in CSV Manager
+- Internal helper functions:
+  - `getCurrentSymbol()`
+  - `getAvailableSymbols()`
+  - `filterBySymbol(symbol)`
+  - `groupBySymbol()`
+
+The CSV schema version is not changed.
+If a CSV does not contain `Symbol` or `CurrencyPair`, the Analyzer treats it as USDJPY internally.
+
+Future expansion target examples:
+
+- GBPJPY
+- EURUSD
+- AUDJPY
+- XAUUSD
+
+At this stage, the UI and research output are still intended for USDJPY operation.
+Multi-symbol switching UI is not added yet.
 
 ---
 
